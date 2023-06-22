@@ -1,18 +1,10 @@
 import { EventEmitter } from "events"
-import Textractor, { codeMode } from "../../utils/textractorConnect"
+import Textractor, { codeMode, Output } from "../../utils/textractorConnect"
 
 // 发布订阅模式，消费文本提取的信息
 class Hooker extends EventEmitter {
   private instance: Hooker | undefined
   private tractor: Textractor
-  // private subscriber
-
-  public getInstance() {
-    if (!this.instance) {
-      this.instance = new Hooker()
-    }
-    return this.instance
-  }
 
   constructor() {
     super()
@@ -31,6 +23,12 @@ class Hooker extends EventEmitter {
 
   remove(pid: number) {
     this.tractor.detach(pid)
+  }
+
+  callBack() {
+    this.tractor.on("output", (output: Output) => {
+      console.log(output)
+    })
   }
 }
 

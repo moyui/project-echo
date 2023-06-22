@@ -1,18 +1,21 @@
 import { useState } from "react"
 import Boot from "../boot"
 import Translator from "../translator"
+import RegisterEvent from "@/components/event"
+
+RegisterEvent()
 
 function Main() {
-  const [isStart, setIsStart] = useState(false)
+  // const [isStart, setIsStart] = useState(false)
 
-  const handleStartClick = () => {
-    setIsStart(true)
-  }
+  // const handleStartClick = () => {
+  //   setIsStart(true)
+  // }
 
   return (
     <>
-      {!isStart ? <Boot onStartClick={handleStartClick}></Boot> : null}
-      {isStart ? <Translator></Translator> : null}
+      <Boot onStartClick={() => {}}></Boot>
+      {/* {isStart ? <Translator></Translator> : null} */}
     </>
   )
 }

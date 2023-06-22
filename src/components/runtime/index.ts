@@ -1,16 +1,19 @@
 import { EventEmitter } from "events"
 import { exec } from "child_process"
 import Hooker from "../hooker"
+import { registerProcessExitCallback } from "../win32"
 import RetryTimer from "@/utils/retryTimer"
 
 class Runtime extends EventEmitter {
   private gameInfo: echo.Game
+  private hooker: Hooker
   private pids: number[]
   private retryTimer: RetryTimer | null
 
   constructor(game: echo.Game) {
     super()
     this.gameInfo = game
+    this.hooker = new Hooker()
     this.pids = []
     this.retryTimer = null
   }
@@ -83,7 +86,13 @@ class Runtime extends EventEmitter {
     await this.retryTimer.run()
   }
 
-  private registerHooker() {}
+  private registerHooker() {
+    this.pids.forEach(pid => this.hooker.inject(pid))
+    registerProcessExitCallback(this.pids, () => {
+      this.emit("runtime exit", this)
+    })
+    this.emit("runtime start", this)
+  }
 }
 
 export default Runtime
