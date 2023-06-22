@@ -1,5 +1,5 @@
-import { B } from "@tauri-apps/api/fs-6ad2a328"
 import { Row, Col, Typography, Button } from "antd"
+import GameStartModal from "./GameStartModal"
 
 const { Title } = Typography
 
@@ -8,8 +8,6 @@ interface BootProps {
 }
 
 function Boot(props: BootProps) {
-  const { onStartClick } = props
-
   return (
     <>
       <Row>
@@ -19,7 +17,17 @@ function Boot(props: BootProps) {
       </Row>
       <Row gutter={16}>
         <Col>
-          <Button onClick={onStartClick}>回声，启动！</Button>
+          <GameStartModal>
+            {({ onStartClick }) => (
+              <Button
+                onClick={() => {
+                  onStartClick()
+                }}
+              >
+                回声，启动！
+              </Button>
+            )}
+          </GameStartModal>
         </Col>
         <Col>
           <Button>设置</Button>
