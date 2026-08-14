@@ -1,0 +1,21 @@
+[package]
+name = "echo-bindings"
+description = "UniFFI 导出层：移动端（安卓/iOS）复用的 FFI 表面"
+version.workspace = true
+edition.workspace = true
+license = "MIT"
+
+[lib]
+name = "echo_bindings"
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+echo-translator.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uniffi = { version = "0.28", features = ["cli"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"

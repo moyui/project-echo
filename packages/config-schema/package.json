@@ -1,0 +1,17 @@
+{
+  "name": "@echo/config-schema",
+  "version": "0.1.0",
+  "private": true,
+  "description": "从 echo-translator 的 Rust 配置结构生成的 TS 类型（单一事实来源）",
+  "types": "index.d.ts",
+  "files": [
+    "index.d.ts",
+    "schema/*.json"
+  ],
+  "scripts": {
+    "generate": "node generate.mjs"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^13.1.2"
+  }
+}

@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TranslatorConfig",
+  "type": "object",
+  "properties": {
+    "baidu": {
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/BaiduConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cache": {
+      "default": {
+        "capacity": 512,
+        "disk_path": null
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/CacheConfig"
+        }
+      ]
+    },
+    "deepl": {
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DeepLConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "glossary": {
+      "description": "术语表：发送给 provider 前做原文侧替换，LLM 额外注入提示词。",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/GlossaryEntry"
+      }
+    },
+    "llm": {
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LlmConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provider": {
+      "default": "mock",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ProviderKind"
+        }
+      ]
+    },
+    "source_lang": {
+      "default": "Auto",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Lang"
+        }
+      ]
+    },
+    "target_lang": {
+      "default": "ZhHans",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Lang"
+        }
+      ]
+    },
+    "youdao": {
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/YoudaoConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "BaiduConfig": {
+      "type": "object",
+      "required": ["app_id", "secret"],
+      "properties": {
+        "app_id": {
+          "type": "string"
+        },
+        "secret": {
+          "type": "string"
+        }
+      }
+    },
+    "CacheConfig": {
+      "type": "object",
+      "properties": {
+        "capacity": {
+          "description": "内存 LRU 容量（条）。",
+          "default": 512,
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "disk_path": {
+          "description": "磁盘缓存文件路径（JSON），设置后 CLI 会在退出时持久化。",
+          "default": null,
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "DeepLConfig": {
+      "type": "object",
+      "required": ["api_key"],
+      "properties": {
+        "api_key": {
+          "type": "string"
+        },
+        "use_free_api": {
+          "description": "true 走 api-free.deepl.com（免费 key），false 走 api.deepl.com（Pro）。",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "GlossaryEntry": {
+      "type": "object",
+      "required": ["source", "target"],
+      "properties": {
+        "source": {
+          "description": "原文术语，如「エルフ」",
+          "type": "string"
+        },
+        "target": {
+          "description": "期望译文，如「精灵」",
+          "type": "string"
+        }
+      }
+    },
+    "Lang": {
+      "description": "语言。`Auto` 表示让翻译服务自动检测。",
+      "type": "string",
+      "enum": ["Auto", "Ja", "ZhHans", "ZhHant", "En", "Ko"]
+    },
+    "LlmConfig": {
+      "type": "object",
+      "required": ["api_key", "endpoint", "model"],
+      "properties": {
+        "api_key": {
+          "type": "string"
+        },
+        "endpoint": {
+          "description": "OpenAI 兼容 base url，如 `https://api.openai.com/v1` 或 `https://open.bigmodel.cn/api/paas/v4`。",
+          "type": "string"
+        },
+        "extra_system_prompt": {
+          "description": "追加到系统提示词末尾的自定义要求（口吻、风格等）。",
+          "type": ["string", "null"]
+        },
+        "model": {
+          "type": "string"
+        }
+      }
+    },
+    "ProviderKind": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["deepl", "baidu", "youdao"]
+        },
+        {
+          "description": "离线演示用，返回 `[mock] 原文`，不发起网络请求。",
+          "type": "string",
+          "enum": ["mock"]
+        },
+        {
+          "description": "任意 OpenAI 兼容端点（OpenAI / GLM / DeepSeek / 本地模型等）。",
+          "type": "string",
+          "enum": ["llm"]
+        }
+      ]
+    },
+    "YoudaoConfig": {
+      "type": "object",
+      "required": ["app_key", "secret"],
+      "properties": {
+        "app_key": {
+          "type": "string"
+        },
+        "secret": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$id": "echo/translator-config.schema.json"
+}

@@ -1,0 +1,28 @@
+{
+  "provider": "llm",
+  "source_lang": "Auto",
+  "target_lang": "ZhHans",
+  "glossary": [{ "source": "エルフ", "target": "精灵" }],
+  "cache": {
+    "capacity": 512,
+    "disk_path": null
+  },
+  "deepl": {
+    "api_key": "你的 DeepL key（免费版走 api-free）",
+    "use_free_api": true
+  },
+  "baidu": {
+    "app_id": "百度翻译 APP ID",
+    "secret": "百度翻译密钥"
+  },
+  "youdao": {
+    "app_key": "有道智云应用 ID",
+    "secret": "有道智云应用密钥"
+  },
+  "llm": {
+    "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+    "api_key": "你的 API key",
+    "model": "glm-4-flash",
+    "extra_system_prompt": "游戏文本，保留角色语气"
+  }
+}

@@ -1,0 +1,7 @@
+# Android 交叉编译：NDK 的 clang 包装器作为 linker
+# NDK r27 (27.2.12479018)，API 级别对齐 minSdk 26
+[target.aarch64-linux-android]
+linker = "C:/Users/12705/AppData/Local/Android/Sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd"
+
+[target.armv7-linux-androideabi]
+linker = "C:/Users/12705/AppData/Local/Android/Sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/windows-x86_64/bin/armv7a-linux-androideabi26-clang.cmd"

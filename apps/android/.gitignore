@@ -1,0 +1,9 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.cxx/
+# Rust 构建产物（运行 apps/android/build-rust.sh 生成）
+app/src/main/jniLibs/
