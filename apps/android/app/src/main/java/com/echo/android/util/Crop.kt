@@ -4,8 +4,8 @@ import android.content.Context
 import com.echo.android.ocr.OcrBlock
 
 /**
- * 裁剪区域：跳过状态栏（时间/电量）和导航栏区域的文本。
- * 顶部默认取系统状态栏实际高度，设置页可覆盖。
+ * 裁剪区域：跳过状态栏（时间/电量）和导航栏/手势条区域。
+ * 顶部默认取系统状态栏实际高度，底部默认取导航栏高度，设置页可覆盖。
  */
 data class CropRegion(val top: Int, val bottom: Int) {
 
@@ -20,18 +20,20 @@ data class CropRegion(val top: Int, val bottom: Int) {
         fun fromPrefs(context: Context): CropRegion {
             val prefs = context.getSharedPreferences("echo", Context.MODE_PRIVATE)
             val top = prefs.getString("crop_top", null)?.toIntOrNull() ?: statusBarHeight(context)
-            val bottom = prefs.getString("crop_bottom", null)?.toIntOrNull() ?: 0
+            val bottom = prefs.getString("crop_bottom", null)?.toIntOrNull() ?: navigationBarHeight(context)
             return CropRegion(top, bottom)
         }
 
-        fun statusBarHeight(context: Context): Int {
+        fun statusBarHeight(context: Context): Int =
+            dimension(context, "status_bar_height") ?: (32 * context.resources.displayMetrics.density).toInt()
+
+        fun navigationBarHeight(context: Context): Int =
+            dimension(context, "navigation_bar_height") ?: (48 * context.resources.displayMetrics.density).toInt()
+
+        private fun dimension(context: Context, name: String): Int? {
             val res = context.resources
-            val id = res.getIdentifier("status_bar_height", "dimen", "android")
-            return if (id > 0) {
-                res.getDimensionPixelSize(id)
-            } else {
-                (32 * res.displayMetrics.density).toInt()
-            }
+            val id = res.getIdentifier(name, "dimen", "android")
+            return if (id > 0) res.getDimensionPixelSize(id).takeIf { it > 0 } else null
         }
     }
 }

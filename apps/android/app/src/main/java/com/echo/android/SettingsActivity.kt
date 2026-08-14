@@ -88,7 +88,9 @@ fun SettingsScreen() {
     var cropTop by remember {
         mutableStateOf(prefs.getString("crop_top", null) ?: "自动")
     }
-    var cropBottom by remember { mutableStateOf(prefs.getString("crop_bottom", null) ?: "0") }
+    var cropBottom by remember {
+        mutableStateOf(prefs.getString("crop_bottom", null) ?: "自动")
+    }
     var saved by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
@@ -234,7 +236,7 @@ fun SettingsScreen() {
                     value = cropBottom,
                     onValueChange = { cropBottom = it },
                     label = { Text("底部（px）") },
-                    placeholder = { Text("0") },
+                    placeholder = { Text("自动") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
@@ -249,7 +251,7 @@ fun SettingsScreen() {
                             .putString("ocr_lang", ocrLangName)
                             .putString("display_mode", displayMode)
                             .putString("crop_top", cropTop.trim().toIntOrNull()?.toString() ?: "")
-                            .putString("crop_bottom", cropBottom.trim().toIntOrNull()?.toString() ?: "0")
+                            .putString("crop_bottom", cropBottom.trim().toIntOrNull()?.toString() ?: "")
                             .apply()
                         saved = true
                     },
