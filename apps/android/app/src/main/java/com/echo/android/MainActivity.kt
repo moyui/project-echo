@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
             }.also { it.register() }
         }
 
-        setContent { EchoApp(pendingUri = pendingUri.value) }
+        setContent { com.echo.android.ui.EchoTheme { EchoApp(pendingUri = pendingUri.value) } }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -168,7 +168,7 @@ fun EchoApp(pendingUri: Uri? = null) {
     }
 
     // 屏幕翻译悬浮球：投屏授权 → 前台服务
-    var captureRunning by remember { mutableStateOf(ScreenCaptureService.isRunning) }
+    // 按钮状态直接观察服务全局 state：悬浮球菜单里关闭服务也能即时同步
     val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK && result.data != null) {
             val service = Intent(context, ScreenCaptureService::class.java).apply {
@@ -178,7 +178,6 @@ fun EchoApp(pendingUri: Uri? = null) {
                 putExtra(ScreenCaptureService.EXTRA_LANG, context.ocrLang().name)
             }
             context.startService(service)
-            captureRunning = true
         }
     }
     fun toggleCapture() {
@@ -186,7 +185,6 @@ fun EchoApp(pendingUri: Uri? = null) {
             context.startService(
                 Intent(context, ScreenCaptureService::class.java).apply { action = ScreenCaptureService.ACTION_STOP },
             )
-            captureRunning = false
         } else if (!Settings.canDrawOverlays(context)) {
             runCatching {
                 context.startActivity(
@@ -247,7 +245,7 @@ fun EchoApp(pendingUri: Uri? = null) {
                 onClick = { toggleCapture() },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (captureRunning) "关闭屏幕翻译悬浮球" else "开启屏幕翻译悬浮球")
+                Text(if (ScreenCaptureService.runningState.value) "关闭屏幕翻译悬浮球" else "开启屏幕翻译悬浮球")
             }
 
             Spacer(Modifier.height(8.dp))

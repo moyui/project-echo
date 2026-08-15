@@ -49,7 +49,7 @@ import java.io.File
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { SettingsScreen() }
+        setContent { com.echo.android.ui.EchoTheme { SettingsScreen() } }
     }
 }
 

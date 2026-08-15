@@ -28,7 +28,7 @@ import java.util.Locale
 class ResultActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { ResultScreen() }
+        setContent { com.echo.android.ui.EchoTheme { ResultScreen() } }
     }
 }
 
