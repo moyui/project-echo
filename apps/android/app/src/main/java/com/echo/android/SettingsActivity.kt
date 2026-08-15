@@ -87,12 +87,17 @@ fun SettingsScreen() {
     var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "below") ?: "below") }
     var fontScale by remember { mutableStateOf(prefs.getString("font_scale", "1.0") ?: "1.0") }
     var scrimAlpha by remember { mutableStateOf(prefs.getString("scrim_alpha", "0.55") ?: "0.55") }
-    var cropTop by remember {
-        mutableStateOf(prefs.getString("crop_top", null) ?: "自动")
+    // 裁剪区域：自动/手动开关，自动时输入框禁用并展示系统实际值
+    var cropTopAuto by remember { mutableStateOf(prefs.getString("crop_top", null)?.toIntOrNull() == null) }
+    var cropTopText by remember {
+        mutableStateOf(prefs.getString("crop_top", null)?.toIntOrNull()?.toString() ?: "")
     }
-    var cropBottom by remember {
-        mutableStateOf(prefs.getString("crop_bottom", null) ?: "自动")
+    var cropBottomAuto by remember { mutableStateOf(prefs.getString("crop_bottom", null)?.toIntOrNull() == null) }
+    var cropBottomText by remember {
+        mutableStateOf(prefs.getString("crop_bottom", null)?.toIntOrNull()?.toString() ?: "")
     }
+    val autoTopPx = remember { com.echo.android.util.CropRegion.statusBarHeight(context) }
+    val autoBottomPx = remember { com.echo.android.util.CropRegion.navigationBarHeight(context) }
     var saved by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
@@ -251,24 +256,54 @@ fun SettingsScreen() {
 
             Spacer(Modifier.height(12.dp))
             Text("裁剪区域（跳过状态栏时间/电量等）", style = MaterialTheme.typography.bodySmall)
-            Row {
-                OutlinedTextField(
-                    value = cropTop,
-                    onValueChange = { cropTop = it },
-                    label = { Text("顶部（px）") },
-                    placeholder = { Text("自动") },
-                    modifier = Modifier.weight(1f).padding(end = 8.dp),
-                    singleLine = true,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("顶部", modifier = Modifier.weight(0.4f))
+                FilterChip(
+                    selected = cropTopAuto,
+                    onClick = { cropTopAuto = true },
+                    label = { Text("自动") },
+                    modifier = Modifier.padding(end = 4.dp),
                 )
-                OutlinedTextField(
-                    value = cropBottom,
-                    onValueChange = { cropBottom = it },
-                    label = { Text("底部（px）") },
-                    placeholder = { Text("自动") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
+                FilterChip(
+                    selected = !cropTopAuto,
+                    onClick = { cropTopAuto = false },
+                    label = { Text("手动") },
                 )
             }
+            OutlinedTextField(
+                value = cropTopText,
+                onValueChange = { cropTopText = it },
+                label = {
+                    Text(if (cropTopAuto) "自动生效：状态栏 ${autoTopPx}px" else "像素值")
+                },
+                enabled = !cropTopAuto,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                Text("底部", modifier = Modifier.weight(0.4f))
+                FilterChip(
+                    selected = cropBottomAuto,
+                    onClick = { cropBottomAuto = true },
+                    label = { Text("自动") },
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+                FilterChip(
+                    selected = !cropBottomAuto,
+                    onClick = { cropBottomAuto = false },
+                    label = { Text("手动") },
+                )
+            }
+            OutlinedTextField(
+                value = cropBottomText,
+                onValueChange = { cropBottomText = it },
+                label = {
+                    Text(if (cropBottomAuto) "自动生效：导航栏 ${autoBottomPx}px" else "像素值")
+                },
+                enabled = !cropBottomAuto,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
 
             Spacer(Modifier.height(16.dp))
             Row {
@@ -280,8 +315,14 @@ fun SettingsScreen() {
                             .putString("display_mode", displayMode)
                             .putString("font_scale", fontScale)
                             .putString("scrim_alpha", scrimAlpha)
-                            .putString("crop_top", cropTop.trim().toIntOrNull()?.toString() ?: "")
-                            .putString("crop_bottom", cropBottom.trim().toIntOrNull()?.toString() ?: "")
+                            .putString(
+                                "crop_top",
+                                if (cropTopAuto) "" else cropTopText.trim().toIntOrNull()?.toString() ?: "",
+                            )
+                            .putString(
+                                "crop_bottom",
+                                if (cropBottomAuto) "" else cropBottomText.trim().toIntOrNull()?.toString() ?: "",
+                            )
                             .apply()
                         saved = true
                     },

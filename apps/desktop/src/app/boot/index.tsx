@@ -1,5 +1,6 @@
 import GameStartModal from "./GameStartModal"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 interface BootProps {
   onStartClick: () => void
@@ -17,9 +18,11 @@ function Boot(_props: BootProps) {
             </Button>
           )}
         </GameStartModal>
-        <Button variant="outline" size="lg" disabled>
-          设置
-        </Button>
+        <Link href="/setting">
+          <Button variant="outline" size="lg">
+            设置
+          </Button>
+        </Link>
         <Button variant="outline" size="lg" disabled>
           待开发功能
         </Button>

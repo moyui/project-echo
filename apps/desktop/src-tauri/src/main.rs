@@ -27,6 +27,9 @@ fn main() {
             textractor_detach,
             textractor_hook,
             translate,
+            get_config,
+            save_config,
+            test_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -238,4 +241,59 @@ fn translate(state: State<'_, AppState>, texts: Vec<String>) -> Result<Vec<Strin
     }
     let gateway = guard.as_mut().expect("网关已初始化");
     tauri::async_runtime::block_on(gateway.translate(&texts)).map_err(|e| e.to_string())
+}
+
+// ---------- 设置页 ----------
+
+fn config_candidates() -> [PathBuf; 4] {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_default();
+    [
+        cwd.join("echo-translator.config.json"),
+        // dev 布局：apps/desktop/src-tauri -> 仓库根
+        cwd.join("../../../crates/echo-translator/echo-translator.config.json"),
+        cwd.join("../../crates/echo-translator/echo-translator.config.json"),
+        exe_dir.join("echo-translator.config.json"),
+    ]
+}
+
+/// 当前生效的配置 JSON（无文件时返回默认 mock 配置）
+#[tauri::command]
+fn get_config() -> Result<String, String> {
+    for path in config_candidates() {
+        if path.exists() {
+            return std::fs::read_to_string(&path).map_err(|e| format!("读取配置失败: {e}"));
+        }
+    }
+    serde_json::to_string_pretty(&TranslatorConfig::default()).map_err(|e| e.to_string())
+}
+
+/// 保存配置（校验合法性后写入现有配置文件位置或默认位置），并重置网关使其下次翻译时生效
+#[tauri::command]
+fn save_config(state: State<'_, AppState>, config_json: String) -> Result<String, String> {
+    let config: TranslatorConfig =
+        serde_json::from_str(&config_json).map_err(|e| format!("配置不合法: {e}"))?;
+    let target = config_candidates()
+        .into_iter()
+        .find(|p| p.exists())
+        .unwrap_or_else(|| config_candidates()[0].clone());
+    let pretty = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    std::fs::write(&target, pretty).map_err(|e| format!("写入失败: {e}"))?;
+    // 重置网关，下次 translate 重新加载
+    *state.gateway.lock().map_err(|e| e.to_string())? = None;
+    Ok(target.display().to_string())
+}
+
+/// 用表单里的配置（未保存也可测）试翻一句
+#[tauri::command]
+fn test_config(config_json: String) -> Result<String, String> {
+    let config: TranslatorConfig =
+        serde_json::from_str(&config_json).map_err(|e| format!("配置不合法: {e}"))?;
+    let mut gateway = Gateway::new(config).map_err(|e| e.to_string())?;
+    let result = tauri::async_runtime::block_on(gateway.translate(&["少女は静かに呟いた".into()]))
+        .map_err(|e| e.to_string())?;
+    Ok(result.into_iter().next().unwrap_or_default())
 }
