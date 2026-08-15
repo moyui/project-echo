@@ -62,6 +62,10 @@ export interface LlmConfig {
    */
   extra_system_prompt?: string | null
   model: string
+  /**
+   * 翻译方案：`gal`（游戏对话，说话人分离+长上下文）或 `manga`（漫画整页，简短译文）。默认 gal。
+   */
+  profile?: string | null
 }
 export interface YoudaoConfig {
   app_key: string

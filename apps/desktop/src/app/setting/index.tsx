@@ -9,6 +9,7 @@ interface LlmCfg {
   endpoint: string
   api_key: string
   model: string
+  profile?: string
   extra_system_prompt?: string
 }
 interface DeepLCfg {
@@ -47,6 +48,7 @@ function Setting() {
     endpoint: "",
     api_key: "",
     model: "",
+    profile: "gal",
   })
   const [deepl, setDeepl] = useState<DeepLCfg>({
     api_key: "",
@@ -64,7 +66,7 @@ function Setting() {
       .then(json => {
         const cfg: EchoConfig = JSON.parse(json)
         setProvider(cfg.provider || "mock")
-        if (cfg.llm) setLlm(cfg.llm)
+        if (cfg.llm) setLlm({ ...cfg.llm, profile: cfg.llm.profile || "gal" })
         if (cfg.deepl) setDeepl(cfg.deepl)
         if (cfg.baidu) setBaidu(cfg.baidu)
         if (cfg.youdao) setYoudao(cfg.youdao)
@@ -176,6 +178,27 @@ function Setting() {
                 }
                 placeholder="附加提示词（口吻/术语要求，可选）"
               />
+              <div>
+                <p className="mb-2 text-sm text-muted-foreground">
+                  翻译方案（两套提示词与处理策略，可对比效果）
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={llm.profile !== "manga" ? "default" : "secondary"}
+                    onClick={() => setLlm({ ...llm, profile: "gal" })}
+                  >
+                    GAL（对话+说话人分离）
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={llm.profile === "manga" ? "default" : "secondary"}
+                    onClick={() => setLlm({ ...llm, profile: "manga" })}
+                  >
+                    漫画（整页气泡）
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 

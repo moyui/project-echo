@@ -171,6 +171,11 @@
         },
         "model": {
           "type": "string"
+        },
+        "profile": {
+          "description": "翻译方案：`gal`（游戏对话，说话人分离+长上下文）或 `manga`（漫画整页，简短译文）。默认 gal。",
+          "default": null,
+          "type": ["string", "null"]
         }
       }
     },

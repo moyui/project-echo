@@ -71,6 +71,9 @@ pub struct LlmConfig {
     pub endpoint: String,
     pub api_key: String,
     pub model: String,
+    /// 翻译方案：`gal`（游戏对话，说话人分离+长上下文）或 `manga`（漫画整页，简短译文）。默认 gal。
+    #[serde(default)]
+    pub profile: Option<String>,
     /// 追加到系统提示词末尾的自定义要求（口吻、风格等）。
     pub extra_system_prompt: Option<String>,
 }

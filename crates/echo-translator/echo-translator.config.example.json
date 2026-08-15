@@ -23,6 +23,7 @@
     "endpoint": "https://open.bigmodel.cn/api/paas/v4",
     "api_key": "你的 API key",
     "model": "glm-4-flash",
+    "profile": "manga",
     "extra_system_prompt": "游戏文本，保留角色语气"
   }
 }

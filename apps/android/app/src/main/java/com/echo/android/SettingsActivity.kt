@@ -82,6 +82,11 @@ fun SettingsScreen() {
     var llmKey by remember { mutableStateOf(existing?.optJSONObject("llm")?.optString("api_key").orEmpty()) }
     var llmModel by remember { mutableStateOf(existing?.optJSONObject("llm")?.optString("model").orEmpty()) }
     var llmExtra by remember { mutableStateOf(existing?.optJSONObject("llm")?.optString("extra_system_prompt").orEmpty()) }
+    var llmProfile by remember {
+        mutableStateOf(
+            existing?.optJSONObject("llm")?.optString("profile").orEmpty().ifBlank { "gal" }
+        )
+    }
 
     var ocrLangName by remember { mutableStateOf(prefs.getString("ocr_lang", OcrLang.Ja.name) ?: OcrLang.Ja.name) }
     var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "below") ?: "below") }
@@ -121,14 +126,15 @@ fun SettingsScreen() {
                 "youdao",
                 JSONObject().put("app_key", youdaoKey.trim()).put("secret", youdaoSecret.trim()),
             )
-            "llm" -> {
-                val llm = JSONObject()
-                    .put("endpoint", llmEndpoint.trim())
-                    .put("api_key", llmKey.trim())
-                    .put("model", llmModel.trim())
-                if (llmExtra.isNotBlank()) llm.put("extra_system_prompt", llmExtra.trim())
-                config.put("llm", llm)
-            }
+                "llm" -> {
+                    val llm = JSONObject()
+                        .put("endpoint", llmEndpoint.trim())
+                        .put("api_key", llmKey.trim())
+                        .put("model", llmModel.trim())
+                        .put("profile", llmProfile)
+                    if (llmExtra.isNotBlank()) llm.put("extra_system_prompt", llmExtra.trim())
+                    config.put("llm", llm)
+                }
         }
         return config
     }
@@ -193,6 +199,21 @@ fun SettingsScreen() {
                     OutlinedTextField(llmExtra, { llmExtra = it }, label = { Text("附加提示词（可选）") },
                         placeholder = { Text("漫画与游戏文本，译文简短口语化") },
                         modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
+                    Text("翻译方案（两套提示词与处理策略，可对比效果）", style = MaterialTheme.typography.bodySmall)
+                    Row {
+                        FilterChip(
+                            selected = llmProfile == "gal",
+                            onClick = { llmProfile = "gal" },
+                            label = { Text("GAL（对话+说话人分离）") },
+                            modifier = Modifier.padding(end = 4.dp),
+                        )
+                        FilterChip(
+                            selected = llmProfile == "manga",
+                            onClick = { llmProfile = "manga" },
+                            label = { Text("漫画（整页气泡）") },
+                        )
+                    }
                 }
                 else -> {
                     Text("离线演示用，返回原文加前缀，不联网。", style = MaterialTheme.typography.bodySmall)
