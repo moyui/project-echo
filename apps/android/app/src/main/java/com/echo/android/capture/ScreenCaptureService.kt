@@ -164,6 +164,7 @@ class ScreenCaptureService : Service() {
         val prefs = getSharedPreferences("echo", MODE_PRIVATE)
         overlayView?.displayBelow = prefs.getString("display_mode", "below") != "cover"
         overlayView?.fontScale = prefs.getString("font_scale", "1.0")?.toFloatOrNull() ?: 1f
+        overlayView?.scrimAlpha = prefs.getString("scrim_alpha", "0.55")?.toFloatOrNull() ?: 0.55f
         cropRegion = com.echo.android.util.CropRegion.fromPrefs(this)
         addBallView()
 

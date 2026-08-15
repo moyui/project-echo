@@ -37,6 +37,9 @@ class OverlayView(context: Context) : View(context) {
     /** 用户字号缩放（设置页），横排/竖排两分支统一应用 */
     var fontScale = 1f
 
+    /** 底衬浓度（设置页） */
+    var scrimAlpha = 0.55f
+
     private var items: List<Item> = emptyList()
     private var srcWidth = 1
     private var srcHeight = 1
@@ -71,7 +74,7 @@ class OverlayView(context: Context) : View(context) {
 
     private fun scrimColor(palette: TextPalette.Palette): Int =
         android.graphics.Color.argb(
-            (0.55f * 255).toInt(),
+            (scrimAlpha * 255).toInt(),
             (palette.background.red * 255).roundToInt(),
             (palette.background.green * 255).roundToInt(),
             (palette.background.blue * 255).roundToInt(),

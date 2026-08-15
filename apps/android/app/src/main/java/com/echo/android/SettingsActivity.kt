@@ -86,6 +86,7 @@ fun SettingsScreen() {
     var ocrLangName by remember { mutableStateOf(prefs.getString("ocr_lang", OcrLang.Ja.name) ?: OcrLang.Ja.name) }
     var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "below") ?: "below") }
     var fontScale by remember { mutableStateOf(prefs.getString("font_scale", "1.0") ?: "1.0") }
+    var scrimAlpha by remember { mutableStateOf(prefs.getString("scrim_alpha", "0.55") ?: "0.55") }
     var cropTop by remember {
         mutableStateOf(prefs.getString("crop_top", null) ?: "自动")
     }
@@ -236,6 +237,19 @@ fun SettingsScreen() {
             }
 
             Spacer(Modifier.height(12.dp))
+            Text("底衬浓度（译文背景的不透明度）", style = MaterialTheme.typography.bodySmall)
+            Row {
+                listOf("0.35" to "淡", "0.55" to "标准", "0.75" to "浓").forEach { (value, label) ->
+                    FilterChip(
+                        selected = scrimAlpha == value,
+                        onClick = { scrimAlpha = value },
+                        label = { Text(label) },
+                        modifier = Modifier.padding(end = 4.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
             Text("裁剪区域（跳过状态栏时间/电量等）", style = MaterialTheme.typography.bodySmall)
             Row {
                 OutlinedTextField(
@@ -265,6 +279,7 @@ fun SettingsScreen() {
                             .putString("ocr_lang", ocrLangName)
                             .putString("display_mode", displayMode)
                             .putString("font_scale", fontScale)
+                            .putString("scrim_alpha", scrimAlpha)
                             .putString("crop_top", cropTop.trim().toIntOrNull()?.toString() ?: "")
                             .putString("crop_bottom", cropBottom.trim().toIntOrNull()?.toString() ?: "")
                             .apply()

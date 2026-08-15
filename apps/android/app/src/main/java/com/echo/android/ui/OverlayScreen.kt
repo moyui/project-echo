@@ -39,9 +39,8 @@ data class TranslationResult(
     val palette: TextPalette.Palette,
 )
 
-/** 译文文字透明度与底色浓度 */
+/** 译文文字透明度（底衬浓度由设置 scrim_alpha 控制） */
 private const val TEXT_ALPHA = 0.9f
-private const val SCRIM_ALPHA = 0.55f
 private const val MIN_SHRINK = 0.6f
 
 /**
@@ -57,6 +56,10 @@ fun OverlayScreen(bitmap: Bitmap, results: List<TranslationResult>, below: Boole
     val fontScale = remember {
         context.getSharedPreferences("echo", android.content.Context.MODE_PRIVATE)
             .getString("font_scale", "1.0")?.toFloatOrNull() ?: 1f
+    }
+    val scrimAlpha = remember {
+        context.getSharedPreferences("echo", android.content.Context.MODE_PRIVATE)
+            .getString("scrim_alpha", "0.55")?.toFloatOrNull() ?: 0.55f
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -116,7 +119,7 @@ fun OverlayScreen(bitmap: Bitmap, results: List<TranslationResult>, below: Boole
                             .offset(x = xOffset, y = yOffset)
                             .width(finalWidth)
                             .background(
-                                result.palette.background.copy(alpha = SCRIM_ALPHA),
+                                result.palette.background.copy(alpha = scrimAlpha),
                                 RoundedCornerShape(3.dp),
                             )
                             .padding(horizontal = 2.dp),
