@@ -1,0 +1,6 @@
+root = true
+
+# Kotlin 风格（ktlint 标准规则集）：
+# Compose 的 @Composable 函数按惯例用 PascalCase，豁免 function-naming 检查
+[*.{kt,kts}]
+ktlint_function_naming_ignore_when_annotated_with = Composable

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +27,10 @@ import java.util.Locale
 class ResultActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { com.echo.android.ui.EchoTheme { ResultScreen() } }
+        setContent {
+            com.echo.android.ui
+                .EchoTheme { ResultScreen() }
+        }
     }
 }
 
@@ -65,7 +67,8 @@ fun ResultScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                com.echo.android.ui.ResultList(captured.results)
+                com.echo.android.ui
+                    .ResultList(captured.results)
             }
         }
     }

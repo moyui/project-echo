@@ -15,18 +15,23 @@ import kotlin.math.min
  * - 文字 = 框内与背景亮度差大的像素簇均值（步进采样控性能）
  */
 object TextPalette {
+    data class Palette(
+        val background: Color,
+        val foreground: Color,
+    )
 
-    data class Palette(val background: Color, val foreground: Color)
-
-    private data class Rgb(var r: Float = 0f, var g: Float = 0f, var b: Float = 0f) {
+    private data class Rgb(
+        var r: Float = 0f,
+        var g: Float = 0f,
+        var b: Float = 0f,
+    ) {
         fun add(pixel: Int) {
             r += (pixel shr 16 and 0xFF)
             g += (pixel shr 8 and 0xFF)
             b += (pixel and 0xFF)
         }
 
-        fun toColor(count: Int): Color =
-            Color(r / count / 255f, g / count / 255f, b / count / 255f)
+        fun toColor(count: Int): Color = Color(r / count / 255f, g / count / 255f, b / count / 255f)
 
         fun luminance(count: Int): Float {
             val (rr, gg, bb) = Triple(r / count, g / count, b / count)
@@ -34,10 +39,18 @@ object TextPalette {
         }
     }
 
-    fun sample(bitmap: Bitmap, block: OcrBlock): Palette =
-        sample(bitmap, block.left, block.top, block.right, block.bottom)
+    fun sample(
+        bitmap: Bitmap,
+        block: OcrBlock,
+    ): Palette = sample(bitmap, block.left, block.top, block.right, block.bottom)
 
-    fun sample(bitmap: Bitmap, left: Int, top: Int, right: Int, bottom: Int): Palette {
+    fun sample(
+        bitmap: Bitmap,
+        left: Int,
+        top: Int,
+        right: Int,
+        bottom: Int,
+    ): Palette {
         val l = max(0, left)
         val t = max(0, top)
         val r = min(bitmap.width - 1, right)
@@ -69,10 +82,11 @@ object TextPalette {
             var x = l
             while (x < r) {
                 val pixel = bitmap.getPixel(x, y)
-                val lum = (
-                    0.299f * (pixel shr 16 and 0xFF) +
-                        0.587f * (pixel shr 8 and 0xFF) +
-                        0.114f * (pixel and 0xFF)
+                val lum =
+                    (
+                        0.299f * (pixel shr 16 and 0xFF) +
+                            0.587f * (pixel shr 8 and 0xFF) +
+                            0.114f * (pixel and 0xFF)
                     ) / 255f
                 if (abs(lum - bgLum) > 0.30f) {
                     fg.add(pixel)
@@ -85,11 +99,12 @@ object TextPalette {
         }
 
         // 高反差像素太少说明该区域没有清晰文字，按背景亮度给对比色兜底
-        val foreground = if (fgCount < total * 0.02f) {
-            if (bgLum > 0.5f) Color.Black else Color.White
-        } else {
-            fg.toColor(fgCount)
-        }
+        val foreground =
+            if (fgCount < total * 0.02f) {
+                if (bgLum > 0.5f) Color.Black else Color.White
+            } else {
+                fg.toColor(fgCount)
+            }
         return Palette(background, foreground)
     }
 }

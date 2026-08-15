@@ -14,6 +14,5 @@ interface TranslationGateway {
 class StubTranslationGateway : TranslationGateway {
     override val name: String = "stub"
 
-    override suspend fun translate(texts: List<String>): List<String> =
-        texts.map { "[Rust 网关待接入] $it" }
+    override suspend fun translate(texts: List<String>): List<String> = texts.map { "[Rust 网关待接入] $it" }
 }

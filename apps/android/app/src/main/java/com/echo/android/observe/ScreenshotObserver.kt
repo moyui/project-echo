@@ -15,7 +15,6 @@ class ScreenshotObserver(
     private val context: Context,
     private val onScreenshot: (Uri) -> Unit,
 ) : ContentObserver(null) {
-
     private var lastId = -1L
     private var lastIdAt = 0L
 
@@ -34,10 +33,11 @@ class ScreenshotObserver(
 
     override fun onChange(selfChange: Boolean) {
         android.util.Log.d("EchoObserver", "onChange 触发")
-        val (id, uri) = queryLatestScreenshot() ?: run {
-            android.util.Log.d("EchoObserver", "反查最新截图失败")
-            return
-        }
+        val (id, uri) =
+            queryLatestScreenshot() ?: run {
+                android.util.Log.d("EchoObserver", "反查最新截图失败")
+                return
+            }
         android.util.Log.d("EchoObserver", "最新截图 id=$id")
         val now = System.currentTimeMillis()
         // 同一张图的入库流程会触发多次 onChange，防抖
@@ -48,19 +48,21 @@ class ScreenshotObserver(
     }
 
     /** 最近 30 秒内入库的最新截图 */
-    private fun queryLatestScreenshot(): Pair<Long, Uri>? = runCatching {
-        val cutoff = System.currentTimeMillis() / 1000 - 30
-        context.contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            arrayOf(Media._ID, Media.DATA, Media.DATE_ADDED),
-            "${Media.DATA} LIKE ? AND ${Media.DATE_ADDED} >= ?",
-            arrayOf("%Screenshots%", cutoff.toString()),
-            "${Media.DATE_ADDED} DESC",
-        )?.use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
-            val id = cursor.getLong(0)
-            val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
-            id to uri
-        }
-    }.getOrNull()
+    private fun queryLatestScreenshot(): Pair<Long, Uri>? =
+        runCatching {
+            val cutoff = System.currentTimeMillis() / 1000 - 30
+            context.contentResolver
+                .query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(Media._ID, Media.DATA, Media.DATE_ADDED),
+                    "${Media.DATA} LIKE ? AND ${Media.DATE_ADDED} >= ?",
+                    arrayOf("%Screenshots%", cutoff.toString()),
+                    "${Media.DATE_ADDED} DESC",
+                )?.use { cursor ->
+                    if (!cursor.moveToFirst()) return@use null
+                    val id = cursor.getLong(0)
+                    val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
+                    id to uri
+                }
+        }.getOrNull()
 }

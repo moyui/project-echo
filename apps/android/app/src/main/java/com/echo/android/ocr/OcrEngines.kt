@@ -1,5 +1,8 @@
 package com.echo.android.ocr
 
+import ai.onnxruntime.OnnxTensor
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.graphics.Bitmap
 import com.echo.android.ocr.OcrEngineKind.MANGA
@@ -11,9 +14,6 @@ import java.net.URL
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
 import java.util.concurrent.atomic.AtomicBoolean
-import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtSession
 
 /**
  * OCR 引擎三档（文本定位统一用 ML Kit，差异在识别，选哪个是哪个）：
@@ -21,7 +21,10 @@ import ai.onnxruntime.OrtSession
  * - PPOCR  标准（默认）：横排 PP-OCRv5 + 竖排 ML Kit
  * - MANGA  精准：manga-ocr 全量识别（漫画质量最佳，模型未下载时回退 ML Kit）
  */
-enum class OcrEngineKind(val display: String, val desc: String) {
+enum class OcrEngineKind(
+    val display: String,
+    val desc: String,
+) {
     MLKIT("快速", "ML Kit 识别全部文本，速度最快"),
     PPOCR("标准（默认）", "横排 PP-OCRv5 + 竖排 ML Kit"),
     MANGA("精准", "manga-ocr 识别全部文本（需下载模型，质量最佳）"),
@@ -36,12 +39,18 @@ fun Context.ocrEngine(): OcrEngineKind {
  * 按 ML Kit 的定位做二次识别，替换每行文本（坐标不变）。
  * 引擎不可用时回退原文本（不中断管线）。
  */
-fun refineBlocks(context: Context, blocks: List<OcrBlock>, bitmap: Bitmap, engine: OcrEngineKind): List<OcrBlock> {
-    return when (engine) {
+fun refineBlocks(
+    context: Context,
+    blocks: List<OcrBlock>,
+    bitmap: Bitmap,
+    engine: OcrEngineKind,
+): List<OcrBlock> =
+    when (engine) {
         MLKIT -> blocks
-        PPOCR -> runCatching { PpOcrRecognizer.get(context).refine(blocks, bitmap) }
-            .onFailure { android.util.Log.w("EchoOcr", "PP-OCRv5 识别失败，回退 ML Kit: ${it.message}") }
-            .getOrElse { blocks }
+        PPOCR ->
+            runCatching { PpOcrRecognizer.get(context).refine(blocks, bitmap) }
+                .onFailure { android.util.Log.w("EchoOcr", "PP-OCRv5 识别失败，回退 ML Kit: ${it.message}") }
+                .getOrElse { blocks }
         MANGA -> {
             val ocr = MangaOcrRecognizer.getOrNull(context)
             if (ocr == null) {
@@ -54,14 +63,22 @@ fun refineBlocks(context: Context, blocks: List<OcrBlock>, bitmap: Bitmap, engin
             }
         }
     }
-}
 
 private fun ortEnv(): OrtEnvironment = OrtEnvironment.getEnvironment()
 
-private fun readAssetBytes(context: Context, path: String): ByteArray =
-    context.assets.open(path).use { it.readBytes() }
+private fun readAssetBytes(
+    context: Context,
+    path: String,
+): ByteArray = context.assets.open(path).use { it.readBytes() }
 
-private fun cropBmp(src: Bitmap, left: Int, top: Int, right: Int, bottom: Int, pad: Int): Bitmap {
+private fun cropBmp(
+    src: Bitmap,
+    left: Int,
+    top: Int,
+    right: Int,
+    bottom: Int,
+    pad: Int,
+): Bitmap {
     val l = (left - pad).coerceAtLeast(0)
     val t = (top - pad).coerceAtLeast(0)
     val r = (right + pad).coerceAtMost(src.width)
@@ -76,8 +93,9 @@ private fun cropBmp(src: Bitmap, left: Int, top: Int, right: Int, bottom: Int, p
  * PP-OCRv5 mobile 文本行识别（CTC）。
  * 输入 h=48、宽按行宽比例（8 对齐），归一化 (x/255-0.5)/0.5；blank 在词表末位。
  */
-class PpOcrRecognizer private constructor(context: Context) {
-
+class PpOcrRecognizer private constructor(
+    context: Context,
+) {
     companion object {
         @Volatile
         private var instance: PpOcrRecognizer? = null
@@ -97,7 +115,11 @@ class PpOcrRecognizer private constructor(context: Context) {
         val bytes = readAssetBytes(context, "ocr/ppocrv5-rec.onnx")
         session = env.createSession(bytes, OrtSession.SessionOptions())
         inputName = session.inputNames.first()
-        dict = context.assets.open("ocr/ppocrv5-dict.txt").bufferedReader().readLines()
+        dict =
+            context.assets
+                .open("ocr/ppocrv5-dict.txt")
+                .bufferedReader()
+                .readLines()
     }
 
     /** 输入必须是横排文本条（竖列请先 rotateToHorizontal） */
@@ -120,15 +142,16 @@ class PpOcrRecognizer private constructor(context: Context) {
         OnnxTensor.createTensor(env, FloatBuffer.wrap(data), longArrayOf(1, 3, h.toLong(), w.toLong())).use { tensor ->
             session.run(mapOf(inputName to tensor)).use { output ->
                 val raw = output[0].value
-                val probs: Array<FloatArray> = if (raw is Array<*> && raw.isNotEmpty() && raw[0] is FloatArray) {
-                    // 导出无 batch 维 [T][C]
-                    @Suppress("UNCHECKED_CAST")
-                    raw as Array<FloatArray>
-                } else {
-                    // 带 batch 维 [1][T][C]
-                    @Suppress("UNCHECKED_CAST")
-                    (raw as Array<*>)[0] as Array<FloatArray>
-                }
+                val probs: Array<FloatArray> =
+                    if (raw is Array<*> && raw.isNotEmpty() && raw[0] is FloatArray) {
+                        // 导出无 batch 维 [T][C]
+                        @Suppress("UNCHECKED_CAST")
+                        raw as Array<FloatArray>
+                    } else {
+                        // 带 batch 维 [1][T][C]
+                        @Suppress("UNCHECKED_CAST")
+                        (raw as Array<*>)[0] as Array<FloatArray>
+                    }
                 return ctcDecode(probs)
             }
         }
@@ -153,7 +176,11 @@ class PpOcrRecognizer private constructor(context: Context) {
             prev = best
         }
         // 日文文本不含空格；CTC 步进残留的空格/全角空格清掉
-        return sb.toString().replace(" ", "").replace("\u3000", "").trim()
+        return sb
+            .toString()
+            .replace(" ", "")
+            .replace("\u3000", "")
+            .trim()
     }
 
     /**
@@ -161,19 +188,24 @@ class PpOcrRecognizer private constructor(context: Context) {
      * 竖排列保留 ML Kit 原文——列裁剪旋转后压到 48px 高损失过大，
      * 实测乱字率高（CTC 对模糊切片输出相似字），不如 ML Kit 原生竖排。
      */
-    fun refine(blocks: List<OcrBlock>, bitmap: Bitmap): List<OcrBlock> = blocks.map { block ->
-        val lines = block.lines.map { line ->
-            val vertical = line.height > line.width * 1.2f
-            if (vertical) {
-                line
-            } else {
-                val crop = cropBmp(bitmap, line.left, line.top, line.right, line.bottom, 2)
-                val text = recognizeLine(crop)
-                if (text.isBlank()) line else line.copy(text = text)
-            }
+    fun refine(
+        blocks: List<OcrBlock>,
+        bitmap: Bitmap,
+    ): List<OcrBlock> =
+        blocks.map { block ->
+            val lines =
+                block.lines.map { line ->
+                    val vertical = line.height > line.width * 1.2f
+                    if (vertical) {
+                        line
+                    } else {
+                        val crop = cropBmp(bitmap, line.left, line.top, line.right, line.bottom, 2)
+                        val text = recognizeLine(crop)
+                        if (text.isBlank()) line else line.copy(text = text)
+                    }
+                }
+            block.copy(lines = lines)
         }
-        block.copy(lines = lines)
-    }
 }
 
 // ---------- manga-ocr（精准引擎，按需下载） ----------
@@ -182,8 +214,9 @@ class PpOcrRecognizer private constructor(context: Context) {
  * manga-ocr：ViT 编码器(224×224, mean/std 0.5) + BERT 解码器贪心自回归。
  * 模型文件在 filesDir/ocr-models/，由 ModelDownloader 负责。
  */
-class MangaOcrRecognizer private constructor(modelDir: File) {
-
+class MangaOcrRecognizer private constructor(
+    modelDir: File,
+) {
     companion object {
         const val ENCODER = "manga-ocr-encoder.onnx"
         const val DECODER = "manga-ocr-decoder.onnx"
@@ -207,9 +240,10 @@ class MangaOcrRecognizer private constructor(modelDir: File) {
             if (instance != null) return instance
             synchronized(this) {
                 if (instance == null) {
-                    instance = runCatching { MangaOcrRecognizer(modelDir(context)) }
-                        .onFailure { android.util.Log.w("EchoOcr", "manga-ocr 加载失败: ${it.message}") }
-                        .getOrNull()
+                    instance =
+                        runCatching { MangaOcrRecognizer(modelDir(context)) }
+                            .onFailure { android.util.Log.w("EchoOcr", "manga-ocr 加载失败: ${it.message}") }
+                            .getOrNull()
                 }
                 return instance
             }
@@ -294,26 +328,30 @@ class MangaOcrRecognizer private constructor(modelDir: File) {
     }
 
     /** 整块二次识别：裁剪块区域喂模型，文本替换为单行 */
-    fun refine(blocks: List<OcrBlock>, bitmap: Bitmap): List<OcrBlock> = blocks.map { block ->
-        val crop = cropBmp(bitmap, block.left, block.top, block.right, block.bottom, 4)
-        val text = recognize(crop)
-        if (text.isBlank()) {
-            block
-        } else {
-            block.copy(lines = listOf(block.lines.first().copy(text = text)))
+    fun refine(
+        blocks: List<OcrBlock>,
+        bitmap: Bitmap,
+    ): List<OcrBlock> =
+        blocks.map { block ->
+            val crop = cropBmp(bitmap, block.left, block.top, block.right, block.bottom, 4)
+            val text = recognize(crop)
+            if (text.isBlank()) {
+                block
+            } else {
+                block.copy(lines = listOf(block.lines.first().copy(text = text)))
+            }
         }
-    }
 }
 
 // ---------- 模型下载（manga-ocr，hf-mirror 优先） ----------
 
 object ModelDownloader {
-
-    private val files = listOf(
-        MangaOcrRecognizer.ENCODER to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/encoder_model.onnx",
-        MangaOcrRecognizer.DECODER to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/decoder_model.onnx",
-        MangaOcrRecognizer.VOCAB to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/vocab.txt",
-    )
+    private val files =
+        listOf(
+            MangaOcrRecognizer.ENCODER to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/encoder_model.onnx",
+            MangaOcrRecognizer.DECODER to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/decoder_model.onnx",
+            MangaOcrRecognizer.VOCAB to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/vocab.txt",
+        )
 
     private val cancelled = AtomicBoolean(false)
 
@@ -322,7 +360,10 @@ object ModelDownloader {
     }
 
     /** 同步下载（调用方放 IO 协程），onProgress(0..1, 描述) */
-    fun download(context: Context, onProgress: (Float, String) -> Unit): Result<Unit> {
+    fun download(
+        context: Context,
+        onProgress: (Float, String) -> Unit,
+    ): Result<Unit> {
         val dir = MangaOcrRecognizer.modelDir(context)
         if (!dir.mkdirs() && !dir.isDirectory) return Result.failure(IllegalStateException("创建目录失败"))
         cancelled.set(false)
@@ -330,24 +371,30 @@ object ModelDownloader {
             val (name, url) = pair
             val dest = File(dir, name)
             if (dest.exists() && dest.length() > 10_000) continue
-            val ok = runCatching {
-                fetch(url, dest, dir) { frac, desc -> onProgress((idx + frac) / files.size, "$name $desc") }
-            }.recoverCatching {
-                if (url.contains("hf-mirror.com")) {
-                    fetch(url.replace("hf-mirror.com", "huggingface.co"), dest, dir) { frac, desc ->
-                        onProgress((idx + frac) / files.size, "$name（官方源）$desc")
+            val ok =
+                runCatching {
+                    fetch(url, dest, dir) { frac, desc -> onProgress((idx + frac) / files.size, "$name $desc") }
+                }.recoverCatching {
+                    if (url.contains("hf-mirror.com")) {
+                        fetch(url.replace("hf-mirror.com", "huggingface.co"), dest, dir) { frac, desc ->
+                            onProgress((idx + frac) / files.size, "$name（官方源）$desc")
+                        }
+                    } else {
+                        throw it
                     }
-                } else {
-                    throw it
                 }
-            }
             if (ok.isFailure) return Result.failure(ok.exceptionOrNull() ?: IllegalStateException("下载失败 $name"))
         }
         onProgress(1f, "完成")
         return Result.success(Unit)
     }
 
-    private fun fetch(url: String, dest: File, dir: File, onProgress: (Float, String) -> Unit) {
+    private fun fetch(
+        url: String,
+        dest: File,
+        dir: File,
+        onProgress: (Float, String) -> Unit,
+    ) {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 15_000
         conn.readTimeout = 60_000

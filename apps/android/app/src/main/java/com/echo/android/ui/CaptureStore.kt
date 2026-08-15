@@ -1,9 +1,9 @@
 package com.echo.android.ui
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import android.graphics.Bitmap
 import com.echo.android.ocr.OcrBlock
 import com.echo.android.palette.TextPalette
 
@@ -14,7 +14,6 @@ import com.echo.android.palette.TextPalette
  * 不随缓存持有（一张 1080×2400 截图约 10MB，驻留无意义）。
  */
 object CaptureStore {
-
     data class Captured(
         val results: List<TranslationResult>,
         val atMillis: Long = System.currentTimeMillis(),
@@ -23,16 +22,22 @@ object CaptureStore {
     var latest by mutableStateOf<Captured?>(null)
         private set
 
-    fun publish(bitmap: Bitmap, blocks: List<OcrBlock>, translations: List<String>) {
-        latest = Captured(
-            results = blocks.mapIndexed { index, block ->
-                TranslationResult(
-                    block = block,
-                    translation = translations.getOrElse(index) { "" },
-                    palette = TextPalette.sample(bitmap, block),
-                )
-            },
-        )
+    fun publish(
+        bitmap: Bitmap,
+        blocks: List<OcrBlock>,
+        translations: List<String>,
+    ) {
+        latest =
+            Captured(
+                results =
+                    blocks.mapIndexed { index, block ->
+                        TranslationResult(
+                            block = block,
+                            translation = translations.getOrElse(index) { "" },
+                            palette = TextPalette.sample(bitmap, block),
+                        )
+                    },
+            )
     }
 
     fun clear() {

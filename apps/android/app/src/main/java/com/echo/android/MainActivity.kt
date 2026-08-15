@@ -22,11 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -49,7 +45,6 @@ import com.echo.android.ocr.OcrEngine
 import com.echo.android.ocr.OcrLang
 import com.echo.android.ocr.ocrEngine
 import com.echo.android.translate.StubTranslationGateway
-import com.echo.android.translate.TranslationGateway
 import com.echo.android.translate.UniffiTranslationGateway
 import com.echo.android.util.Images
 import kotlinx.coroutines.Dispatchers
@@ -68,12 +63,20 @@ class MainActivity : ComponentActivity() {
         intent?.data?.let { pendingUri.value = it }
 
         if (screenshotObserver == null) {
-            screenshotObserver = com.echo.android.observe.ScreenshotObserver(this) { uri ->
-                runOnUiThread { com.echo.android.notify.Notifications.showScreenshot(this, uri) }
-            }.also { it.register() }
+            screenshotObserver =
+                com.echo.android.observe
+                    .ScreenshotObserver(this) { uri ->
+                        runOnUiThread {
+                            com.echo.android.notify.Notifications
+                                .showScreenshot(this, uri)
+                        }
+                    }.also { it.register() }
         }
 
-        setContent { com.echo.android.ui.EchoTheme { EchoApp(pendingUri = pendingUri.value) } }
+        setContent {
+            com.echo.android.ui
+                .EchoTheme { EchoApp(pendingUri = pendingUri.value) }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -106,38 +109,49 @@ fun EchoApp(pendingUri: Uri? = null) {
         error = null
         scope.launch {
             try {
-                val image = withContext(Dispatchers.IO) {
-                    Images.decodeScaled(context, uri)
-                }
+                val image =
+                    withContext(Dispatchers.IO) {
+                        Images.decodeScaled(context, uri)
+                    }
 
                 // 小字辅助：小分辨率图放大后再识别，坐标映射回原图
                 val ocrScale = if (minOf(image.width, image.height) < 1200) 2f else 1f
-                val ocrBitmap = if (ocrScale > 1f) {
-                    Bitmap.createScaledBitmap(
-                        image,
-                        (image.width * ocrScale).toInt(),
-                        (image.height * ocrScale).toInt(),
-                        true,
-                    )
-                } else {
-                    image
-                }
+                val ocrBitmap =
+                    if (ocrScale > 1f) {
+                        Bitmap.createScaledBitmap(
+                            image,
+                            (image.width * ocrScale).toInt(),
+                            (image.height * ocrScale).toInt(),
+                            true,
+                        )
+                    } else {
+                        image
+                    }
                 val rawBlocks = OcrEngine.recognize(ocrBitmap, context.ocrLang())
                 val mapped = if (ocrScale > 1f) rawBlocks.map { it.scaledBy(1f / ocrScale) } else rawBlocks
                 // 行级裁剪状态栏/导航栏 + 气泡聚类 + 二次识别（引擎档位见设置）
-                val blocks = com.echo.android.ocr.BlockMerge.merge(
-                    com.echo.android.util.CropRegion.fromPrefs(context).filterByLines(mapped, image.height)
-                )
-                val finalBlocks = com.echo.android.ocr.refineBlocks(
-                    context, blocks, image, context.ocrEngine(),
-                )
-                val translations = try {
-                    gateway.translate(finalBlocks.map { it.text })
-                } catch (e: Exception) {
-                    error = "翻译失败（已用原文占位）：${e.message}"
-                    finalBlocks.map { it.text }
-                }
-                com.echo.android.ui.CaptureStore.publish(image, finalBlocks, translations)
+                val blocks =
+                    com.echo.android.ocr.BlockMerge.merge(
+                        com.echo.android.util.CropRegion
+                            .fromPrefs(context)
+                            .filterByLines(mapped, image.height),
+                    )
+                val finalBlocks =
+                    com.echo.android.ocr.refineBlocks(
+                        context,
+                        blocks,
+                        image,
+                        context.ocrEngine(),
+                    )
+                val translations =
+                    try {
+                        gateway.translate(finalBlocks.map { it.text })
+                    } catch (e: Exception) {
+                        error = "翻译失败（已用原文占位）：${e.message}"
+                        finalBlocks.map { it.text }
+                    }
+                com.echo.android.ui.CaptureStore
+                    .publish(image, finalBlocks, translations)
             } catch (e: Exception) {
                 error = "识别失败：${e.message}"
             } finally {
@@ -169,17 +183,20 @@ fun EchoApp(pendingUri: Uri? = null) {
 
     // 屏幕翻译悬浮球：投屏授权 → 前台服务
     // 按钮状态直接观察服务全局 state：悬浮球菜单里关闭服务也能即时同步
-    val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK && result.data != null) {
-            val service = Intent(context, ScreenCaptureService::class.java).apply {
-                action = ScreenCaptureService.ACTION_START
-                putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, result.resultCode)
-                putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, result.data)
-                putExtra(ScreenCaptureService.EXTRA_LANG, context.ocrLang().name)
+    val projectionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK && result.data != null) {
+                val service =
+                    Intent(context, ScreenCaptureService::class.java).apply {
+                        action = ScreenCaptureService.ACTION_START
+                        putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, result.resultCode)
+                        putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, result.data)
+                        putExtra(ScreenCaptureService.EXTRA_LANG, context.ocrLang().name)
+                    }
+                context.startService(service)
             }
-            context.startService(service)
         }
-    }
+
     fun toggleCapture() {
         if (ScreenCaptureService.isRunning) {
             context.startService(
@@ -250,7 +267,10 @@ fun EchoApp(pendingUri: Uri? = null) {
 
             Spacer(Modifier.height(8.dp))
             // 识别结果独立页面：数据来源 = 悬浮球点按抓取的屏幕帧（CaptureStore）
-            val count = com.echo.android.ui.CaptureStore.latest?.results?.size ?: 0
+            val count =
+                com.echo.android.ui.CaptureStore.latest
+                    ?.results
+                    ?.size ?: 0
             OutlinedButton(
                 onClick = { context.startActivity(Intent(context, ResultActivity::class.java)) },
                 modifier = Modifier.fillMaxWidth(),

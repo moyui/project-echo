@@ -16,8 +16,9 @@ import com.echo.android.palette.TextPalette
  * 所有气泡的译文逐条列在屏幕底部的一个面板里，全部横排，
  * 按面板宽度自动换行，内容过多时整体缩小字号以适配面板高度。
  */
-class OverlayView(context: Context) : View(context) {
-
+class OverlayView(
+    context: Context,
+) : View(context) {
     data class Item(
         val block: OcrBlock,
         val translation: String,
@@ -35,17 +36,23 @@ class OverlayView(context: Context) : View(context) {
 
     private var items: List<Item> = emptyList()
 
-    private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.LEFT
-        color = Color.argb(242, 255, 255, 255)
-    }
+    private val textPaint =
+        TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.LEFT
+            color = Color.argb(242, 255, 255, 255)
+        }
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(40, 255, 255, 255)
-        strokeWidth = 2f
-    }
+    private val dividerPaint =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(40, 255, 255, 255)
+            strokeWidth = 2f
+        }
 
-    fun update(items: List<Item>, srcWidth: Int, srcHeight: Int) {
+    fun update(
+        items: List<Item>,
+        srcWidth: Int,
+        srcHeight: Int,
+    ) {
         this.items = items
         hasContent = items.isNotEmpty()
         invalidate()
@@ -57,9 +64,12 @@ class OverlayView(context: Context) : View(context) {
 
         val marginH = (width * 0.025f).toInt()
         // 底部间距与裁剪设置同源：导航条/手势安全区 + 少量呼吸，面板不压系统栏
-        val cropBottom = runCatching {
-            com.echo.android.util.CropRegion.fromPrefs(context).bottom
-        }.getOrDefault(0)
+        val cropBottom =
+            runCatching {
+                com.echo.android.util.CropRegion
+                    .fromPrefs(context)
+                    .bottom
+            }.getOrDefault(0)
         val bottomMargin = (cropBottom + (height * 0.006f).toInt()).coerceAtLeast((height * 0.02f).toInt())
         val panelWidth = width - marginH * 2
         val maxPanelHeight = (height * 0.42f).toInt()
@@ -68,17 +78,19 @@ class OverlayView(context: Context) : View(context) {
         val entryGap = (height * 0.008f).toInt()
         val textWidth = panelWidth - padH * 2
 
-        fun buildLayouts(fontPx: Float): List<StaticLayout> = items.map { item ->
-            StaticLayout.Builder
-                .obtain(item.translation, 0, item.translation.length, textPaint.apply { textSize = fontPx }, textWidth)
-                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                .setLineSpacing(entryGap.toFloat() * 0.4f, 1f)
-                .build()
-        }
+        fun buildLayouts(fontPx: Float): List<StaticLayout> =
+            items.map { item ->
+                StaticLayout.Builder
+                    .obtain(item.translation, 0, item.translation.length, textPaint.apply { textSize = fontPx }, textWidth)
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                    .setLineSpacing(entryGap.toFloat() * 0.4f, 1f)
+                    .build()
+            }
 
         // 字号超限时迭代等比缩小，保证所有条目都完整放进面板（不再有下限，避免溢出）
         var fontPx = width / 24f * fontScale
         var layouts = buildLayouts(fontPx)
+
         fun contentHeight(ls: List<StaticLayout>): Int = ls.sumOf { it.height } + entryGap * (ls.size - 1)
         val maxContent = maxPanelHeight - padV * 2
         var content = contentHeight(layouts)

@@ -4,8 +4,8 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,19 +49,23 @@ import java.io.File
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { com.echo.android.ui.EchoTheme { SettingsScreen() } }
+        setContent {
+            com.echo.android.ui
+                .EchoTheme { SettingsScreen() }
+        }
     }
 }
 
 private const val CONFIG_NAME = "echo-translator.config.json"
 
-private val PROVIDERS = listOf(
-    "mock" to "Mock 离线",
-    "llm" to "LLM",
-    "deepl" to "DeepL",
-    "baidu" to "百度",
-    "youdao" to "有道",
-)
+private val PROVIDERS =
+    listOf(
+        "mock" to "Mock 离线",
+        "llm" to "LLM",
+        "deepl" to "DeepL",
+        "baidu" to "百度",
+        "youdao" to "有道",
+    )
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -77,7 +81,14 @@ fun SettingsScreen() {
     var deeplFree by remember { mutableStateOf(existing?.optJSONObject("deepl")?.optBoolean("use_free_api", true) ?: true) }
     var baiduId by remember { mutableStateOf(existing?.optJSONObject("baidu")?.optString("app_id").orEmpty()) }
     var baiduSecret by remember { mutableStateOf(existing?.optJSONObject("baidu")?.optString("secret").orEmpty()) }
-    var youdaoKey by remember { existing?.optJSONObject("youdao")?.optString("app_key").orEmpty()?.let { mutableStateOf(it) } ?: mutableStateOf("") }
+    var youdaoKey by remember {
+        existing
+            ?.optJSONObject("youdao")
+            ?.optString("app_key")
+            .orEmpty()
+            ?.let { mutableStateOf(it) }
+            ?: mutableStateOf("")
+    }
     var youdaoSecret by remember { mutableStateOf(existing?.optJSONObject("youdao")?.optString("secret").orEmpty()) }
     var llmEndpoint by remember { mutableStateOf(existing?.optJSONObject("llm")?.optString("endpoint").orEmpty()) }
     var llmKey by remember { mutableStateOf(existing?.optJSONObject("llm")?.optString("api_key").orEmpty()) }
@@ -85,13 +96,19 @@ fun SettingsScreen() {
     var llmExtra by remember { mutableStateOf(existing?.optJSONObject("llm")?.optString("extra_system_prompt").orEmpty()) }
     var llmProfile by remember {
         mutableStateOf(
-            existing?.optJSONObject("llm")?.optString("profile").orEmpty().ifBlank { "gal" }
+            existing
+                ?.optJSONObject("llm")
+                ?.optString("profile")
+                .orEmpty()
+                .ifBlank { "gal" },
         )
     }
 
     var ocrLangName by remember { mutableStateOf(prefs.getString("ocr_lang", OcrLang.Ja.name) ?: OcrLang.Ja.name) }
     var ocrEngineName by remember {
-        mutableStateOf(prefs.getString("ocr_engine", com.echo.android.ocr.OcrEngineKind.PPOCR.name) ?: com.echo.android.ocr.OcrEngineKind.PPOCR.name)
+        mutableStateOf(
+            prefs.getString("ocr_engine", com.echo.android.ocr.OcrEngineKind.PPOCR.name) ?: com.echo.android.ocr.OcrEngineKind.PPOCR.name,
+        )
     }
     var mangaDownloadProgress by remember { mutableStateOf<Pair<Float, String>?>(null) }
     var mangaDownloading by remember { mutableStateOf(false) }
@@ -106,8 +123,16 @@ fun SettingsScreen() {
     var cropBottomText by remember {
         mutableStateOf(prefs.getString("crop_bottom", null)?.toIntOrNull()?.toString() ?: "")
     }
-    val autoTopPx = remember { com.echo.android.util.CropRegion.statusBarHeight(context) }
-    val autoBottomPx = remember { com.echo.android.util.CropRegion.navigationBarHeight(context) }
+    val autoTopPx =
+        remember {
+            com.echo.android.util.CropRegion
+                .statusBarHeight(context)
+        }
+    val autoBottomPx =
+        remember {
+            com.echo.android.util.CropRegion
+                .navigationBarHeight(context)
+        }
     var saved by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
@@ -119,27 +144,31 @@ fun SettingsScreen() {
         if (!config.has("target_lang")) config.put("target_lang", "ZhHans")
         config.put("provider", provider)
         when (provider) {
-            "deepl" -> config.put(
-                "deepl",
-                JSONObject().put("api_key", deeplKey.trim()).put("use_free_api", deeplFree),
-            )
-            "baidu" -> config.put(
-                "baidu",
-                JSONObject().put("app_id", baiduId.trim()).put("secret", baiduSecret.trim()),
-            )
-            "youdao" -> config.put(
-                "youdao",
-                JSONObject().put("app_key", youdaoKey.trim()).put("secret", youdaoSecret.trim()),
-            )
-                "llm" -> {
-                    val llm = JSONObject()
+            "deepl" ->
+                config.put(
+                    "deepl",
+                    JSONObject().put("api_key", deeplKey.trim()).put("use_free_api", deeplFree),
+                )
+            "baidu" ->
+                config.put(
+                    "baidu",
+                    JSONObject().put("app_id", baiduId.trim()).put("secret", baiduSecret.trim()),
+                )
+            "youdao" ->
+                config.put(
+                    "youdao",
+                    JSONObject().put("app_key", youdaoKey.trim()).put("secret", youdaoSecret.trim()),
+                )
+            "llm" -> {
+                val llm =
+                    JSONObject()
                         .put("endpoint", llmEndpoint.trim())
                         .put("api_key", llmKey.trim())
                         .put("model", llmModel.trim())
                         .put("profile", llmProfile)
-                    if (llmExtra.isNotBlank()) llm.put("extra_system_prompt", llmExtra.trim())
-                    config.put("llm", llm)
-                }
+                if (llmExtra.isNotBlank()) llm.put("extra_system_prompt", llmExtra.trim())
+                config.put("llm", llm)
+            }
         }
         return config
     }
@@ -173,9 +202,14 @@ fun SettingsScreen() {
 
             when (provider) {
                 "deepl" -> {
-                    OutlinedTextField(deeplKey, { deeplKey = it }, label = { Text("DeepL API Key") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        visualTransformation = PasswordVisualTransformation())
+                    OutlinedTextField(
+                        deeplKey,
+                        { deeplKey = it },
+                        label = { Text("DeepL API Key") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = deeplFree, onCheckedChange = { deeplFree = it })
                         Spacer(Modifier.height(0.dp))
@@ -183,32 +217,71 @@ fun SettingsScreen() {
                     }
                 }
                 "baidu" -> {
-                    OutlinedTextField(baiduId, { baiduId = it }, label = { Text("百度 APP ID") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    OutlinedTextField(baiduSecret, { baiduSecret = it }, label = { Text("百度密钥") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        visualTransformation = PasswordVisualTransformation())
+                    OutlinedTextField(
+                        baiduId,
+                        { baiduId = it },
+                        label = { Text("百度 APP ID") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        baiduSecret,
+                        { baiduSecret = it },
+                        label = { Text("百度密钥") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
                 }
                 "youdao" -> {
-                    OutlinedTextField(youdaoKey, { youdaoKey = it }, label = { Text("有道应用 ID") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    OutlinedTextField(youdaoSecret, { youdaoSecret = it }, label = { Text("有道应用密钥") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        visualTransformation = PasswordVisualTransformation())
+                    OutlinedTextField(
+                        youdaoKey,
+                        { youdaoKey = it },
+                        label = { Text("有道应用 ID") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        youdaoSecret,
+                        { youdaoSecret = it },
+                        label = { Text("有道应用密钥") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
                 }
                 "llm" -> {
-                    OutlinedTextField(llmEndpoint, { llmEndpoint = it }, label = { Text("API 端点（OpenAI 兼容）") },
+                    OutlinedTextField(
+                        llmEndpoint,
+                        { llmEndpoint = it },
+                        label = { Text("API 端点（OpenAI 兼容）") },
                         placeholder = { Text("https://opencode.ai/zen/go/v1") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    OutlinedTextField(llmKey, { llmKey = it }, label = { Text("API Key") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        visualTransformation = PasswordVisualTransformation())
-                    OutlinedTextField(llmModel, { llmModel = it }, label = { Text("模型名") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        llmKey,
+                        { llmKey = it },
+                        label = { Text("API Key") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
+                    OutlinedTextField(
+                        llmModel,
+                        { llmModel = it },
+                        label = { Text("模型名") },
                         placeholder = { Text("mimo-v2.5") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    OutlinedTextField(llmExtra, { llmExtra = it }, label = { Text("附加提示词（可选）") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        llmExtra,
+                        { llmExtra = it },
+                        label = { Text("附加提示词（可选）") },
                         placeholder = { Text("漫画与游戏文本，译文简短口语化") },
-                        modifier = Modifier.fillMaxWidth())
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(8.dp))
                     Text("翻译方案", style = MaterialTheme.typography.bodySmall)
                     Row {
@@ -254,7 +327,9 @@ fun SettingsScreen() {
                 }
             }
             if (ocrEngineName == com.echo.android.ocr.OcrEngineKind.MANGA.name) {
-                val downloaded = com.echo.android.ocr.MangaOcrRecognizer.isDownloaded(context)
+                val downloaded =
+                    com.echo.android.ocr.MangaOcrRecognizer
+                        .isDownloaded(context)
                 if (downloaded) {
                     Text("模型已就绪（漫画质量最佳，推理较慢）", style = MaterialTheme.typography.bodySmall)
                 } else if (!mangaDownloading && mangaDownloadProgress == null) {
@@ -263,10 +338,20 @@ fun SettingsScreen() {
                 if (mangaDownloading || mangaDownloadProgress != null) {
                     val p = mangaDownloadProgress
                     Text(
-                        if (mangaDownloading && p != null) "下载中 ${(p.first * 100).toInt()}% · ${p.second}"
-                        else p?.second ?: "",
+                        if (mangaDownloading && p != null) {
+                            "下载中 ${(p.first * 100).toInt()}% · ${p.second}"
+                        } else {
+                            p?.second ?: ""
+                        },
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (p?.first == 1f && !mangaDownloading) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color =
+                            if (p?.first == 1f &&
+                                !mangaDownloading
+                            ) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                 }
                 Row {
@@ -275,19 +360,33 @@ fun SettingsScreen() {
                             mangaDownloading = true
                             mangaDownloadProgress = 0f to "准备中"
                             scope.launch {
-                                val result = withContext(Dispatchers.IO) {
-                                    com.echo.android.ocr.ModelDownloader.download(context) { f, d ->
-                                        mangaDownloadProgress = f to d
+                                val result =
+                                    withContext(Dispatchers.IO) {
+                                        com.echo.android.ocr.ModelDownloader.download(context) { f, d ->
+                                            mangaDownloadProgress = f to d
+                                        }
                                     }
-                                }
                                 mangaDownloading = false
                                 result.onFailure { mangaDownloadProgress = -1f to "下载失败：${it.message}（点重试）" }
                             }
                         },
                         enabled = !mangaDownloading && !downloaded,
-                    ) { Text(if (downloaded) "已下载" else if (mangaDownloadProgress?.first == -1f) "重试" else "下载模型") }
+                    ) {
+                        Text(
+                            if (downloaded) {
+                                "已下载"
+                            } else if (mangaDownloadProgress?.first == -1f) {
+                                "重试"
+                            } else {
+                                "下载模型"
+                            },
+                        )
+                    }
                     if (mangaDownloading) {
-                        androidx.compose.material3.TextButton(onClick = { com.echo.android.ocr.ModelDownloader.cancel() }) {
+                        androidx.compose.material3.TextButton(onClick = {
+                            com.echo.android.ocr.ModelDownloader
+                                .cancel()
+                        }) {
                             Text("取消")
                         }
                     }
@@ -371,9 +470,10 @@ fun SettingsScreen() {
                     label = { Text("顶部裁剪（px）") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
-                    ),
+                    keyboardOptions =
+                        androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                        ),
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
@@ -407,9 +507,10 @@ fun SettingsScreen() {
                     label = { Text("底部裁剪（px）") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
-                    ),
+                    keyboardOptions =
+                        androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                        ),
                 )
             }
 
@@ -418,7 +519,8 @@ fun SettingsScreen() {
                 Button(
                     onClick = {
                         File(context.filesDir, CONFIG_NAME).writeText(buildConfig().toString())
-                        prefs.edit()
+                        prefs
+                            .edit()
                             .putString("ocr_lang", ocrLangName)
                             .putString("ocr_engine", ocrEngineName)
                             .putString("font_scale", fontScale)
@@ -426,16 +528,17 @@ fun SettingsScreen() {
                             .putString(
                                 "crop_top",
                                 if (cropTopAuto) "" else cropTopText.trim().toIntOrNull()?.toString() ?: "",
-                            )
-                            .putString(
+                            ).putString(
                                 "crop_bottom",
                                 if (cropBottomAuto) "" else cropBottomText.trim().toIntOrNull()?.toString() ?: "",
-                            )
-                            .apply()
+                            ).apply()
                         // 保存成功：提示后返回主页
-                        android.widget.Toast.makeText(
-                            context, "已保存，重启 app 或悬浮球后生效", android.widget.Toast.LENGTH_SHORT
-                        ).show()
+                        android.widget.Toast
+                            .makeText(
+                                context,
+                                "已保存，重启 app 或悬浮球后生效",
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
                         (context as? android.app.Activity)?.finish()
                     },
                     modifier = Modifier.weight(1f),
@@ -446,16 +549,17 @@ fun SettingsScreen() {
                         testing = true
                         testResult = null
                         scope.launch {
-                            testResult = withContext(Dispatchers.IO) {
-                                try {
-                                    val translator = EchoTranslator(buildConfig().toString())
-                                    val result = translator.translate(listOf("少女は静かに呟いた"))
-                                    translator.close()
-                                    result.firstOrNull().orEmpty()
-                                } catch (e: Exception) {
-                                    "错误：${e.message}"
+                            testResult =
+                                withContext(Dispatchers.IO) {
+                                    try {
+                                        val translator = EchoTranslator(buildConfig().toString())
+                                        val result = translator.translate(listOf("少女は静かに呟いた"))
+                                        translator.close()
+                                        result.firstOrNull().orEmpty()
+                                    } catch (e: Exception) {
+                                        "错误：${e.message}"
+                                    }
                                 }
-                            }
                             testing = false
                         }
                     },

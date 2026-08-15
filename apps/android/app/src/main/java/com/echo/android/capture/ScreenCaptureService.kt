@@ -50,7 +50,6 @@ import kotlinx.coroutines.launch
  * MediaProjection 授权一次后保持，按需单帧捕获，无持续扫描。
  */
 class ScreenCaptureService : Service() {
-
     companion object {
         const val ACTION_START = "com.echo.android.capture.START"
         const val ACTION_STOP = "com.echo.android.capture.STOP"
@@ -72,6 +71,7 @@ class ScreenCaptureService : Service() {
     private var imageReader: ImageReader? = null
     private var overlayView: OverlayView? = null
     private var ballView: android.view.View? = null
+
     // 交替用备用球窗口：重建（展开/收起）时它先以新几何上屏、首帧绘制完成后再销毁
     // 旧窗口，全程无"窗口销毁→新窗口首帧"之间的球消失空窗（闪烁根源）
     private var spareBallView: android.view.View? = null
@@ -87,6 +87,7 @@ class ScreenCaptureService : Service() {
     private val ballLongFired = androidx.compose.runtime.mutableStateOf(false)
     private val menuHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val menuTimeoutRunnable = Runnable { dismissMenu() }
+
     // 菜单展开前的窗口位置（收起时恢复）
     private var ballOriginX = 0
     private var ballSizePx = 146
@@ -95,14 +96,20 @@ class ScreenCaptureService : Service() {
 
     private var captureWidth = 0
     private var captureHeight = 0
-    private var cropRegion = com.echo.android.util.CropRegion(0, 0)
+    private var cropRegion =
+        com.echo.android.util
+            .CropRegion(0, 0)
 
     @Volatile
     private var busy = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         when (intent?.action) {
             ACTION_STOP -> {
                 android.util.Log.d("EchoBall", "收到 ACTION_STOP")
@@ -111,13 +118,15 @@ class ScreenCaptureService : Service() {
             }
             ACTION_START -> {
                 val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
-                val data: Intent? = if (Build.VERSION.SDK_INT >= 33) {
-                    intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(EXTRA_RESULT_DATA)
-                }
-                lang = intent.getStringExtra(EXTRA_LANG)
+                val data: Intent? =
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(EXTRA_RESULT_DATA)
+                    }
+                lang = intent
+                    .getStringExtra(EXTRA_LANG)
                     ?.let { runCatching { OcrLang.valueOf(it) }.getOrNull() }
                     ?: OcrLang.Ja
                 if (data == null) {
@@ -136,19 +145,22 @@ class ScreenCaptureService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(channelId, "屏幕翻译悬浮球", NotificationManager.IMPORTANCE_LOW),
         )
-        val contentIntent = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle("Echo 悬浮球已开启")
-            .setContentText("点击小球翻译屏幕，再点清除；拖动可移动")
-            .setOngoing(true)
-            .setContentIntent(contentIntent)
-            .build()
+        val contentIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        val notification =
+            NotificationCompat
+                .Builder(this, channelId)
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setContentTitle("Echo 悬浮球已开启")
+                .setContentText("点击小球翻译屏幕，再点清除；拖动可移动")
+                .setOngoing(true)
+                .setContentIntent(contentIntent)
+                .build()
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(1001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         } else {
@@ -157,16 +169,23 @@ class ScreenCaptureService : Service() {
     }
 
     @Suppress("DEPRECATION")
-    private fun startCapture(resultCode: Int, data: Intent) {
+    private fun startCapture(
+        resultCode: Int,
+        data: Intent,
+    ) {
         val projectionManager = getSystemService(MediaProjectionManager::class.java)
-        projection = projectionManager.getMediaProjection(resultCode, data).also { proj ->
-            proj.registerCallback(object : MediaProjection.Callback() {
-                override fun onStop() {
-                    android.util.Log.d("EchoBall", "MediaProjection onStop → 关服务")
-                    stopSelf()
-                }
-            }, null)
-        }
+        projection =
+            projectionManager.getMediaProjection(resultCode, data).also { proj ->
+                proj.registerCallback(
+                    object : MediaProjection.Callback() {
+                        override fun onStop() {
+                            android.util.Log.d("EchoBall", "MediaProjection onStop → 关服务")
+                            stopSelf()
+                        }
+                    },
+                    null,
+                )
+            }
 
         val metrics = android.util.DisplayMetrics()
         getSystemService(WindowManager::class.java).defaultDisplay.getRealMetrics(metrics)
@@ -174,16 +193,17 @@ class ScreenCaptureService : Service() {
         captureHeight = metrics.heightPixels
 
         imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
-        virtualDisplay = projection?.createVirtualDisplay(
-            "echo-capture",
-            captureWidth,
-            captureHeight,
-            metrics.densityDpi,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            imageReader!!.surface,
-            null,
-            null,
-        )
+        virtualDisplay =
+            projection?.createVirtualDisplay(
+                "echo-capture",
+                captureWidth,
+                captureHeight,
+                metrics.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                imageReader!!.surface,
+                null,
+                null,
+            )
 
         gateway = UniffiTranslationGateway.load(this)
         addOverlayView()
@@ -192,7 +212,9 @@ class ScreenCaptureService : Service() {
         val prefs = getSharedPreferences("echo", MODE_PRIVATE)
         overlayView?.fontScale = prefs.getString("font_scale", "1.0")?.toFloatOrNull() ?: 1f
         overlayView?.scrimAlpha = prefs.getString("scrim_alpha", "0.75")?.toFloatOrNull() ?: 0.75f
-        cropRegion = com.echo.android.util.CropRegion.fromPrefs(this)
+        cropRegion =
+            com.echo.android.util.CropRegion
+                .fromPrefs(this)
         addBallView()
 
         isRunning = true
@@ -226,15 +248,16 @@ class ScreenCaptureService : Service() {
     private fun addOverlayView() {
         val wm = getSystemService(WindowManager::class.java)
         overlayView = OverlayView(this)
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-            android.graphics.PixelFormat.TRANSLUCENT,
-        )
+        val params =
+            WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                android.graphics.PixelFormat.TRANSLUCENT,
+            )
         wm.addView(overlayView, params)
     }
 
@@ -252,77 +275,82 @@ class ScreenCaptureService : Service() {
         // 两个实例交替（见 rebuildBallWindow）：展开/收起时备用窗口先上屏再销毁旧窗口，
         // 避免 ColorOS 上重建窗口的"球消失一帧"闪烁。二者组合同一组状态，内容恒同步。
         val lifecycleOwner = BallLifecycleOwner().also { ballLifecycle = it }
-        fun newBallView() = androidx.compose.ui.platform.ComposeView(this).apply {
-            setViewTreeLifecycleOwner(lifecycleOwner)
-            setViewTreeSavedStateRegistryOwner(lifecycleOwner)
-            setViewCompositionStrategy(
-                androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnDetachedFromWindow,
-            )
-            // 手势在 View 层处理（rawX/rawY 屏幕绝对坐标）：Compose 的本地坐标差在窗口随拖动
-            // 移动时被抵消（拖不跟手）；长按用 Handler 定时（静止时 Compose 事件流无事件可等）
-            setOnTouchListener { _, e -> handleBallTouch(e, wm, point, ballSize) }
-            setContent {
-                com.echo.android.ui.EchoTheme {
-                    FloatBall(
-                        text = ballText.value,
-                        dimmed = ballDim.value,
-                        hasContent = ballHasDot.value,
-                        menuOpen = menuOpen.value,
-                        menuAtLeft = menuAtLeft.value,
-                        pressed = ballPressed.value,
-                        longFired = ballLongFired.value,
-                        onClear = {
-                            clearTranslations()
-                            dismissMenu()
-                        },
-                        onResults = {
-                            dismissMenu()
-                            runCatching {
-                                startActivity(
-                                    android.content.Intent(this@ScreenCaptureService, com.echo.android.ResultActivity::class.java)
-                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
-                            }
-                        },
-                        onCloseService = {
-                            android.util.Log.d("EchoBall", "菜单：关闭悬浮球")
-                            dismissMenu()
-                            stopSelf()
-                        },
-                    )
+
+        fun newBallView() =
+            androidx.compose.ui.platform.ComposeView(this).apply {
+                setViewTreeLifecycleOwner(lifecycleOwner)
+                setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+                setViewCompositionStrategy(
+                    androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnDetachedFromWindow,
+                )
+                // 手势在 View 层处理（rawX/rawY 屏幕绝对坐标）：Compose 的本地坐标差在窗口随拖动
+                // 移动时被抵消（拖不跟手）；长按用 Handler 定时（静止时 Compose 事件流无事件可等）
+                setOnTouchListener { _, e -> handleBallTouch(e, wm, point, ballSize) }
+                setContent {
+                    com.echo.android.ui.EchoTheme {
+                        FloatBall(
+                            text = ballText.value,
+                            dimmed = ballDim.value,
+                            hasContent = ballHasDot.value,
+                            menuOpen = menuOpen.value,
+                            menuAtLeft = menuAtLeft.value,
+                            pressed = ballPressed.value,
+                            longFired = ballLongFired.value,
+                            onClear = {
+                                clearTranslations()
+                                dismissMenu()
+                            },
+                            onResults = {
+                                dismissMenu()
+                                runCatching {
+                                    startActivity(
+                                        android.content
+                                            .Intent(this@ScreenCaptureService, com.echo.android.ResultActivity::class.java)
+                                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
+                                }
+                            },
+                            onCloseService = {
+                                android.util.Log.d("EchoBall", "菜单：关闭悬浮球")
+                                dismissMenu()
+                                stopSelf()
+                            },
+                        )
+                    }
                 }
             }
-        }
 
         val prefs = getSharedPreferences("echo", MODE_PRIVATE)
-        ballParams = WindowManager.LayoutParams(
-            ballSize,
-            ballSize,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            android.graphics.PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            // 禁用窗口动画：展开/收起 resize 时系统的 move+resize 动画会把尺寸和位置
-            // 分开插值，中间帧窗口停在原位但已缩窄，球（TopEnd 锚定）被画在窗口左部
-            // （屏幕中间），再随位置动画滑回右缘——视觉上"先弹到中间再滑回边缘"。
-            windowAnimations = 0
-            // overlay 窗口默认会被系统栏 inset 下移（状态栏 80px），
-            // 导致 mAttrs 坐标与实际渲染位置错位、点击打空，禁用 inset 适配
-            if (Build.VERSION.SDK_INT >= 30) {
-                setFitInsetsTypes(0)
-            }
-            // 记忆上次拖放位置（越界则回退默认）
-            val savedX = prefs.getInt("ball_x", -1)
-            val savedY = prefs.getInt("ball_y", -1)
-            if (savedX in 0 until point.x && savedY in 0 until point.y) {
-                x = savedX.coerceAtMost(point.x - ballSize)
-                y = savedY.coerceAtMost(point.y - ballSize)
-            } else {
-                x = point.x - ballSize - (16 * density).toInt()
-                y = point.y / 3
-            }
-        }
+        ballParams =
+            WindowManager
+                .LayoutParams(
+                    ballSize,
+                    ballSize,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    android.graphics.PixelFormat.TRANSLUCENT,
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.START
+                    // 禁用窗口动画：展开/收起 resize 时系统的 move+resize 动画会把尺寸和位置
+                    // 分开插值，中间帧窗口停在原位但已缩窄，球（TopEnd 锚定）被画在窗口左部
+                    // （屏幕中间），再随位置动画滑回右缘——视觉上"先弹到中间再滑回边缘"。
+                    windowAnimations = 0
+                    // overlay 窗口默认会被系统栏 inset 下移（状态栏 80px），
+                    // 导致 mAttrs 坐标与实际渲染位置错位、点击打空，禁用 inset 适配
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        setFitInsetsTypes(0)
+                    }
+                    // 记忆上次拖放位置（越界则回退默认）
+                    val savedX = prefs.getInt("ball_x", -1)
+                    val savedY = prefs.getInt("ball_y", -1)
+                    if (savedX in 0 until point.x && savedY in 0 until point.y) {
+                        x = savedX.coerceAtMost(point.x - ballSize)
+                        y = savedY.coerceAtMost(point.y - ballSize)
+                    } else {
+                        x = point.x - ballSize - (16 * density).toInt()
+                        y = point.y / 3
+                    }
+                }
 
         ballView = newBallView()
         spareBallView = newBallView()
@@ -337,12 +365,16 @@ class ScreenCaptureService : Service() {
         android.util.Log.d(
             "EchoBallPos",
             "$source x=${p.x} y=${p.y} w=${p.width} h=${p.height} " +
-                "menuAtLeft=${menuAtLeft.value} menuOpen=${menuOpen.value} ballLeft=$ballLeft"
+                "menuAtLeft=${menuAtLeft.value} menuOpen=${menuOpen.value} ballLeft=$ballLeft",
         )
     }
 
     /** 松手边缘吸附：滑到较近的一侧并记忆位置；留出 50px 边距避开系统边缘手势热区 */
-    private fun snapBallToEdge(wm: WindowManager, point: Point, ballSize: Int) {
+    private fun snapBallToEdge(
+        wm: WindowManager,
+        point: Point,
+        ballSize: Int,
+    ) {
         val params = ballParams ?: return
         val view = ballView ?: return
         // 吸附目标按球大小计算（target = 屏幕宽 - 球 - 边距），展开窗口会把它甩出屏幕；
@@ -354,24 +386,28 @@ class ScreenCaptureService : Service() {
         val ballCenter = params.x + params.width - ballSize / 2
         val target = if (ballCenter < point.x / 2) edgeGap else point.x - ballSize - edgeGap
         snapAnimator?.cancel()
-        snapAnimator = android.animation.ValueAnimator.ofInt(params.x, target).apply {
-            duration = 180
-            interpolator = android.view.animation.DecelerateInterpolator()
-            addUpdateListener { anim ->
-                params.x = anim.animatedValue as Int
-                runCatching { wm.updateViewLayout(view, params) }
-                logBallPos("snap")
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    getSharedPreferences("echo", MODE_PRIVATE).edit()
-                        .putInt("ball_x", params.x)
-                        .putInt("ball_y", params.y)
-                        .apply()
+        snapAnimator =
+            android.animation.ValueAnimator.ofInt(params.x, target).apply {
+                duration = 180
+                interpolator = android.view.animation.DecelerateInterpolator()
+                addUpdateListener { anim ->
+                    params.x = anim.animatedValue as Int
+                    runCatching { wm.updateViewLayout(view, params) }
+                    logBallPos("snap")
                 }
-            })
-            start()
-        }
+                addListener(
+                    object : android.animation.AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: android.animation.Animator) {
+                            getSharedPreferences("echo", MODE_PRIVATE)
+                                .edit()
+                                .putInt("ball_x", params.x)
+                                .putInt("ball_y", params.y)
+                                .apply()
+                        }
+                    },
+                )
+                start()
+            }
     }
 
     /** View 层完整手势：tap=翻译 / 长按(Handler 400ms)=菜单 / 拖动(rawX 绝对坐标)=移动 */
@@ -381,16 +417,19 @@ class ScreenCaptureService : Service() {
     private var touchParamY = 0
     private var touchDragged = false
     private var touchLongFired = false
+
     // 菜单展开时点击了窗口空白区：本次手势整段吞掉（收起菜单即可，不触发 tap/拖动/吸附）
     private var touchIgnored = false
+
     // 窗口重建时刻：重建后 300ms 内的触摸是旧窗口销毁时输入系统重定向来的
     // 幽灵事件（无对应 UP），吞掉避免 pressed 卡在按下态
     private var lastRebuildAt = 0L
-    private val longPressRunnable = Runnable {
-        touchLongFired = true
-        ballLongFired.value = true
-        onBallLongPressed()
-    }
+    private val longPressRunnable =
+        Runnable {
+            touchLongFired = true
+            ballLongFired.value = true
+            onBallLongPressed()
+        }
 
     private fun handleBallTouch(
         e: MotionEvent,
@@ -474,7 +513,6 @@ class ScreenCaptureService : Service() {
         scope.launch { translateNow() }
     }
 
-    /** 长按 = 操作菜单（清除译文 / 识别结果 / 关闭悬浮球） */
     /** 长按 = 操作菜单（清除译文 / 识别结果 / 关闭悬浮球），再长按收起 */
     private fun onBallLongPressed() {
         if (busy) return
@@ -488,7 +526,8 @@ class ScreenCaptureService : Service() {
     private fun clearTranslations() {
         overlayView?.post { overlayView?.update(emptyList(), captureWidth, captureHeight) }
         ballHasDot.value = false
-        com.echo.android.ui.CaptureStore.clear()
+        com.echo.android.ui.CaptureStore
+            .clear()
     }
 
     /**
@@ -497,7 +536,10 @@ class ScreenCaptureService : Service() {
      * 之间球会消失一帧（闪烁）。这里用双窗口交替：备用窗口先以新几何上屏（透明 Surface
      * 透出旧窗口内容，不可见），等它首帧绘制完成再销毁旧窗口——切换全程无空窗。
      */
-    private fun rebuildBallWindow(wm: WindowManager, params: WindowManager.LayoutParams) {
+    private fun rebuildBallWindow(
+        wm: WindowManager,
+        params: WindowManager.LayoutParams,
+    ) {
         val old = ballView ?: return
         val spare = spareBallView ?: return
         runCatching { wm.addView(spare, params) }
@@ -512,16 +554,17 @@ class ScreenCaptureService : Service() {
                 return
             }
         // 备用窗口首帧绘制完成后切换：此时其内容已就绪，销毁旧窗口无任何空窗
-        val observer = object : android.view.ViewTreeObserver.OnDrawListener {
-            override fun onDraw() {
-                // onDraw 回调期间禁止修改 observer，post 到下一帧再切换——
-                // 此时备用窗口绘制已完成（本回调即绘制完成的信号）
-                spare.post {
-                    spare.viewTreeObserver.removeOnDrawListener(this)
-                    swapBallViews(wm, old, spare)
+        val observer =
+            object : android.view.ViewTreeObserver.OnDrawListener {
+                override fun onDraw() {
+                    // onDraw 回调期间禁止修改 observer，post 到下一帧再切换——
+                    // 此时备用窗口绘制已完成（本回调即绘制完成的信号）
+                    spare.post {
+                        spare.viewTreeObserver.removeOnDrawListener(this)
+                        swapBallViews(wm, old, spare)
+                    }
                 }
             }
-        }
         spare.viewTreeObserver.addOnDrawListener(observer)
         // 兜底：OnDrawListener 未触发（备用窗口未绘制）时 150ms 后强行切换
         spare.postDelayed({
@@ -532,7 +575,11 @@ class ScreenCaptureService : Service() {
         }, 150)
     }
 
-    private fun swapBallViews(wm: WindowManager, old: View, spare: View) {
+    private fun swapBallViews(
+        wm: WindowManager,
+        old: View,
+        spare: View,
+    ) {
         // ColorOS 在 addView 新 overlay 窗口时会自动移除旧窗口，此时 remove 失败是预期
         runCatching { wm.removeViewImmediate(old) }
             .onFailure { android.util.Log.d("EchoBall", "rebuild 旧窗口已被系统移除: $it") }
@@ -542,12 +589,6 @@ class ScreenCaptureService : Service() {
         lastRebuildAt = SystemClock.uptimeMillis()
     }
 
-    /**
-     * 显示操作菜单。菜单窗口只在首次创建，之后用 visibility 显隐——
-     * 在 ColorOS 上反复 addView/removeView 多个 overlay 窗口（菜单+全屏 scrim）
-     * 会引发触摸路由漂移（球收不到事件/服务被系统停掉），改为常驻窗口方案。
-     * 不做全屏 scrim：收起靠点操作项 / 再长按 / 6 秒超时。
-     */
     /**
      * 展开菜单 = 扩大球窗口（菜单与球同一 overlay 窗口，无第二窗口，规避
      * ColorOS 多 overlay 窗口下触摸路由漂移）。
@@ -637,34 +678,38 @@ class ScreenCaptureService : Service() {
             // 虚拟屏只在画面变化时产帧：球的隐藏本身就是一次变化，等它渲染出来
             delay(450)
 
-            val reader = imageReader ?: run {
-                android.util.Log.d("EchoBall", "无 ImageReader")
-                return
-            }
-            var image = try {
-                reader.acquireLatestImage()
-            } catch (_: Exception) {
-                null
-            }
-            if (image == null) {
-                delay(600)
-                image = try {
+            val reader =
+                imageReader ?: run {
+                    android.util.Log.d("EchoBall", "无 ImageReader")
+                    return
+                }
+            var image =
+                try {
                     reader.acquireLatestImage()
                 } catch (_: Exception) {
                     null
                 }
+            if (image == null) {
+                delay(600)
+                image =
+                    try {
+                        reader.acquireLatestImage()
+                    } catch (_: Exception) {
+                        null
+                    }
             }
             if (image == null) {
                 android.util.Log.d("EchoBall", "取帧失败（无新帧）")
                 return
             }
-            val bitmap = try {
-                image.toBitmap()
-            } catch (_: Exception) {
-                null
-            } finally {
-                image.close()
-            }
+            val bitmap =
+                try {
+                    image.toBitmap()
+                } catch (_: Exception) {
+                    null
+                } finally {
+                    image.close()
+                }
             if (bitmap == null) {
                 android.util.Log.d("EchoBall", "帧转 Bitmap 失败")
                 return
@@ -678,56 +723,65 @@ class ScreenCaptureService : Service() {
 
             // 小字辅助：小分辨率屏放大后再识别，坐标映射回原尺寸
             val ocrScale = if (minOf(bitmap.width, bitmap.height) < 1200) 2f else 1f
-            val ocrBitmap = if (ocrScale > 1f) {
-                Bitmap.createScaledBitmap(
-                    bitmap,
-                    (bitmap.width * ocrScale).toInt(),
-                    (bitmap.height * ocrScale).toInt(),
-                    true,
-                )
-            } else {
-                bitmap
-            }
-            val rawBlocks = try {
-                OcrEngine.recognize(ocrBitmap, lang)
-            } catch (_: Exception) {
-                emptyList()
-            }
+            val ocrBitmap =
+                if (ocrScale > 1f) {
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * ocrScale).toInt(),
+                        (bitmap.height * ocrScale).toInt(),
+                        true,
+                    )
+                } else {
+                    bitmap
+                }
+            val rawBlocks =
+                try {
+                    OcrEngine.recognize(ocrBitmap, lang)
+                } catch (_: Exception) {
+                    emptyList()
+                }
             val blocks = if (ocrScale > 1f) rawBlocks.map { it.scaledBy(1f / ocrScale) } else rawBlocks
             android.util.Log.d("EchoBall", "OCR 完成 ${blocks.size} 块")
             // 行级裁剪状态栏/导航栏 + 气泡聚类（一个气泡一个译文框）
-            val cropped = BlockMerge.merge(
-                cropRegion.filterByLines(blocks, captureHeight)
-            )
+            val cropped =
+                BlockMerge.merge(
+                    cropRegion.filterByLines(blocks, captureHeight),
+                )
             if (cropped.isEmpty()) {
                 android.util.Log.d("EchoBall", "OCR 无结果（裁剪后）")
                 return
             }
             // 二次识别（引擎档位来自设置：ML Kit / PP-OCRv5 / manga-ocr），失败自动回退
             android.util.Log.d("EchoBall", "二次识别开始 engine=${ocrEngine()}")
-            val finalBlocks = com.echo.android.ocr.refineBlocks(this, cropped, bitmap, ocrEngine())
+            val finalBlocks =
+                com.echo.android.ocr
+                    .refineBlocks(this, cropped, bitmap, ocrEngine())
             android.util.Log.d("EchoBall", "二次识别完成 ${finalBlocks.size} 块")
 
-            val g = gateway ?: run {
-                android.util.Log.d("EchoBall", "网关未加载")
-                return
-            }
-            val translations = try {
-                val r = g.translate(finalBlocks.map { it.text })
-                android.util.Log.d("EchoBall", "翻译完成 ${r.size} 条")
-                r
-            } catch (e: Exception) {
-                android.util.Log.d("EchoBall", "翻译失败: ${e.message}")
-                null
-            } ?: return
-            val items = finalBlocks.mapIndexedNotNull { index, block ->
-                val text = translations.getOrNull(index)?.takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
-                OverlayView.Item(block, text, TextPalette.sample(bitmap, block))
-            }
+            val g =
+                gateway ?: run {
+                    android.util.Log.d("EchoBall", "网关未加载")
+                    return
+                }
+            val translations =
+                try {
+                    val r = g.translate(finalBlocks.map { it.text })
+                    android.util.Log.d("EchoBall", "翻译完成 ${r.size} 条")
+                    r
+                } catch (e: Exception) {
+                    android.util.Log.d("EchoBall", "翻译失败: ${e.message}")
+                    null
+                } ?: return
+            val items =
+                finalBlocks.mapIndexedNotNull { index, block ->
+                    val text = translations.getOrNull(index)?.takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
+                    OverlayView.Item(block, text, TextPalette.sample(bitmap, block))
+                }
             overlayView?.post { overlayView?.update(items, captureWidth, captureHeight) }
             ballHasDot.value = items.isNotEmpty()
             // 同步发布到主页预览（图片叠加 + 逐条对照列表）
-            com.echo.android.ui.CaptureStore.publish(bitmap, finalBlocks, translations)
+            com.echo.android.ui.CaptureStore
+                .publish(bitmap, finalBlocks, translations)
         } finally {
             // 3) 无论如何球都恢复常驻
             ball?.post { ball.visibility = View.VISIBLE }
@@ -767,9 +821,9 @@ class ScreenCaptureService : Service() {
  * Compose 悬浮球的生命周期桥：Service context 没有 ViewTreeLifecycleOwner，
  * 手动驱动 Lifecycle + SavedStateRegistry 让 ComposeView 可在 WindowManager 里渲染。
  */
-private class BallLifecycleOwner : androidx.lifecycle.LifecycleOwner,
+private class BallLifecycleOwner :
+    androidx.lifecycle.LifecycleOwner,
     androidx.savedstate.SavedStateRegistryOwner {
-
     private val lifecycleRegistry = androidx.lifecycle.LifecycleRegistry(this)
     private val savedStateController = androidx.savedstate.SavedStateRegistryController.create(this)
 

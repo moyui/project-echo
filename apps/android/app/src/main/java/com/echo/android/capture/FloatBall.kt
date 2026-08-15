@@ -59,11 +59,12 @@ fun FloatBall(
 ) {
     // 长按时缩到 0.9：放大超窗口边界会被裁出缺角（窗口=球大小），菜单弹出已是主反馈
     val scale by animateFloatAsState(
-        targetValue = when {
-            longFired -> 0.9f
-            pressed -> 0.86f
-            else -> 1f
-        },
+        targetValue =
+            when {
+                longFired -> 0.9f
+                pressed -> 0.86f
+                else -> 1f
+            },
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "ballScale",
     )
@@ -79,9 +80,10 @@ fun FloatBall(
     Box(modifier = Modifier.fillMaxSize()) {
         if (menuOpen) {
             BallMenu(
-                modifier = Modifier
-                    .align(menuAlign)
-                    .offset(x = menuOffsetX, y = 4.dp),
+                modifier =
+                    Modifier
+                        .align(menuAlign)
+                        .offset(x = menuOffsetX, y = 4.dp),
                 mirrored = menuAtLeft,
                 onClear = onClear,
                 onResults = onResults,
@@ -91,16 +93,16 @@ fun FloatBall(
         // 球本体（手势由 View 层处理，这里只渲染）
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .align(ballAlign)
-                .size(52.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = if (dimmed) 0.6f else 1f
-                }
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary, CircleShape),
+            modifier =
+                Modifier
+                    .align(ballAlign)
+                    .size(52.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = if (dimmed) 0.6f else 1f
+                    }.clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
         ) {
             Text(text = text, color = Color.White, fontSize = 20.sp)
             if (hasContent) {
@@ -108,8 +110,10 @@ fun FloatBall(
                     Modifier
                         .align(Alignment.TopEnd)
                         .size(10.dp)
-                        .graphicsLayer { translationX = 1f; translationY = -1f }
-                        .clip(CircleShape)
+                        .graphicsLayer {
+                            translationX = 1f
+                            translationY = -1f
+                        }.clip(CircleShape)
                         .background(Color(0xFFFF5A5A)),
                 )
             }
@@ -126,11 +130,12 @@ fun BallMenu(
     onResults: () -> Unit,
     onCloseService: () -> Unit,
 ) {
-    val items = listOf(
-        Triple("清", "清除译文", onClear),
-        Triple("果", "识别结果", onResults),
-        Triple("关", "关闭悬浮球", onCloseService),
-    )
+    val items =
+        listOf(
+            Triple("清", "清除译文", onClear),
+            Triple("果", "识别结果", onResults),
+            Triple("关", "关闭悬浮球", onCloseService),
+        )
     // 菜单项按贴球侧对齐：球在左（badge 在左）→ 各项左缘对齐；
     // 球在右（badge 在右，菜单在球左）→ 各项右缘对齐，整体贴向球侧。
     // 固定 Column 宽度为最宽菜单项的固有宽（wrap-content 会随各项不同宽而逐项左对齐）
@@ -169,16 +174,16 @@ private fun MenuDialItem(
     val badgeButton = @Composable {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(42.dp)
-                .graphicsLayer {
-                    val s = 0.3f + 0.7f * appear
-                    scaleX = s
-                    scaleY = s
-                    alpha = appear
-                }
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary),
+            modifier =
+                Modifier
+                    .size(42.dp)
+                    .graphicsLayer {
+                        val s = 0.3f + 0.7f * appear
+                        scaleX = s
+                        scaleY = s
+                        alpha = appear
+                    }.clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
         ) {
             Text(badge, color = Color.White, fontSize = 16.sp)
         }
@@ -186,16 +191,16 @@ private fun MenuDialItem(
     val labelChip = @Composable {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .graphicsLayer {
-                    val s = 0.6f + 0.4f * appear
-                    scaleX = s
-                    scaleY = s
-                    alpha = appear
-                }
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xEE2A2A32))
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier =
+                Modifier
+                    .graphicsLayer {
+                        val s = 0.6f + 0.4f * appear
+                        scaleX = s
+                        scaleY = s
+                        alpha = appear
+                    }.clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xEE2A2A32))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
         ) {
             Text(label, color = Color.White, fontSize = 13.sp)
         }
@@ -203,9 +208,10 @@ private fun MenuDialItem(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (mirrored) Arrangement.End else Arrangement.Start,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
     ) {
         if (mirrored) {
             labelChip()

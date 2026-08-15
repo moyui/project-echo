@@ -14,18 +14,18 @@ import java.io.File
 class UniffiTranslationGateway private constructor(
     private val translator: EchoTranslator,
 ) : TranslationGateway {
-
     override val name: String
         get() = translator.providerName()
 
     override suspend fun translate(texts: List<String>): List<String> {
         val t0 = System.currentTimeMillis()
-        val out = withContext(Dispatchers.IO) {
-            val t1 = System.currentTimeMillis()
-            val r = translator.translate(texts)
-            android.util.Log.d("EchoBall", "Rust translate ${texts.size} 条耗时 ${System.currentTimeMillis() - t1}ms")
-            r
-        }
+        val out =
+            withContext(Dispatchers.IO) {
+                val t1 = System.currentTimeMillis()
+                val r = translator.translate(texts)
+                android.util.Log.d("EchoBall", "Rust translate ${texts.size} 条耗时 ${System.currentTimeMillis() - t1}ms")
+                r
+            }
         android.util.Log.d("EchoBall", "Kotlin 桥接总耗时 ${System.currentTimeMillis() - t0}ms")
         return out
     }
@@ -34,13 +34,16 @@ class UniffiTranslationGateway private constructor(
         private const val DEFAULT_CONFIG =
             """{"provider":"mock","source_lang":"Auto","target_lang":"ZhHans"}"""
 
-        fun load(context: Context): UniffiTranslationGateway? = try {
-            val configJson = File(context.filesDir, CONFIG_NAME)
-                .takeIf { it.exists() }?.readText() ?: DEFAULT_CONFIG
-            UniffiTranslationGateway(EchoTranslator(configJson))
-        } catch (_: Throwable) {
-            null
-        }
+        fun load(context: Context): UniffiTranslationGateway? =
+            try {
+                val configJson =
+                    File(context.filesDir, CONFIG_NAME)
+                        .takeIf { it.exists() }
+                        ?.readText() ?: DEFAULT_CONFIG
+                UniffiTranslationGateway(EchoTranslator(configJson))
+            } catch (_: Throwable) {
+                null
+            }
 
         private const val CONFIG_NAME = "echo-translator.config.json"
     }
