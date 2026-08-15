@@ -18,8 +18,17 @@ class UniffiTranslationGateway private constructor(
     override val name: String
         get() = translator.providerName()
 
-    override suspend fun translate(texts: List<String>): List<String> =
-        withContext(Dispatchers.IO) { translator.translate(texts) }
+    override suspend fun translate(texts: List<String>): List<String> {
+        val t0 = System.currentTimeMillis()
+        val out = withContext(Dispatchers.IO) {
+            val t1 = System.currentTimeMillis()
+            val r = translator.translate(texts)
+            android.util.Log.d("EchoBall", "Rust translate ${texts.size} 条耗时 ${System.currentTimeMillis() - t1}ms")
+            r
+        }
+        android.util.Log.d("EchoBall", "Kotlin 桥接总耗时 ${System.currentTimeMillis() - t0}ms")
+        return out
+    }
 
     companion object {
         private const val DEFAULT_CONFIG =

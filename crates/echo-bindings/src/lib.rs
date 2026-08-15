@@ -34,8 +34,10 @@ impl EchoTranslator {
         let config: TranslatorConfig =
             serde_json::from_str(&config_json).map_err(|e| EchoError::Config(e.to_string()))?;
         let gateway = Gateway::new(config).map_err(|e| EchoError::Config(e.to_string()))?;
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(1)
+        // current_thread：翻译请求天然串行（单 gateway 互斥），多线程 runtime 的
+        // block_on 要等 worker 线程调度，在部分 Android 系统上 worker 被后台冻结
+        // 时延迟可达数十秒；单线程 runtime 由 block_on 调用线程直接驱动，无此问题。
+        let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .map_err(|e| EchoError::Internal(e.to_string()))?;
