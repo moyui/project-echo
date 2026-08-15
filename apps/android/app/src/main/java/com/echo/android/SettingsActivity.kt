@@ -265,7 +265,7 @@ fun SettingsScreen() {
             Spacer(Modifier.height(12.dp))
             Text("底衬浓度（译文背景的不透明度）", style = MaterialTheme.typography.bodySmall)
             Row {
-                listOf("0.35" to "淡", "0.55" to "标准", "0.75" to "浓").forEach { (value, label) ->
+                listOf("0.35" to "淡", "0.55" to "标准", "0.75" to "浓", "1.0" to "不透明").forEach { (value, label) ->
                     FilterChip(
                         selected = scrimAlpha == value,
                         onClick = { scrimAlpha = value },
@@ -357,7 +357,11 @@ fun SettingsScreen() {
                                 if (cropBottomAuto) "" else cropBottomText.trim().toIntOrNull()?.toString() ?: "",
                             )
                             .apply()
-                        saved = true
+                        // 保存成功：提示后返回主页
+                        android.widget.Toast.makeText(
+                            context, "已保存，重启 app 或悬浮球后生效", android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                        (context as? android.app.Activity)?.finish()
                     },
                     modifier = Modifier.weight(1f),
                 ) { Text("保存") }
@@ -372,9 +376,9 @@ fun SettingsScreen() {
                                     val translator = EchoTranslator(buildConfig().toString())
                                     val result = translator.translate(listOf("少女は静かに呟いた"))
                                     translator.close()
-                                    "✓ ${result.firstOrNull().orEmpty()}"
+                                    result.firstOrNull().orEmpty()
                                 } catch (e: Exception) {
-                                    "✗ ${e.message}"
+                                    "错误：${e.message}"
                                 }
                             }
                             testing = false
@@ -385,16 +389,19 @@ fun SettingsScreen() {
                 ) { Text(if (testing) "测试中…" else "测试配置") }
             }
 
-            testResult?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "测试：$it",
-                    color = if (it.startsWith("✓")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            // 测试结果弹窗
+            testResult?.let { result ->
+                val ok = !result.startsWith("错误")
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { testResult = null },
+                    title = { Text(if (ok) "测试成功" else "测试失败") },
+                    text = { Text("少女は静かに呟いた\n→ $result") },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = { testResult = null }) {
+                            Text("知道了")
+                        }
+                    },
                 )
-            }
-            if (saved) {
-                Spacer(Modifier.height(8.dp))
-                Text("已保存。重启 app 或重新开启悬浮球后生效。", color = MaterialTheme.colorScheme.primary)
             }
         }
     }
