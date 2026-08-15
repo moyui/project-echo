@@ -21,6 +21,34 @@ pub use config::{
 pub use error::{Result, TranslateError};
 pub use gateway::Gateway;
 
+/// 配置的权威位置：系统配置目录（Windows: %APPDATA%\echo，Linux: ~/.config/echo，macOS: ~/Library/Application Support/echo）。
+/// 桌面端设置页与 CLI 共用这一份；安卓端使用 app 私有目录（见 Android 侧代码）。
+pub fn default_config_path() -> std::path::PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("echo")
+        .join("echo-translator.config.json")
+}
+
+/// 从默认位置读取配置；不存在时返回默认 mock 配置
+pub fn load_default_config() -> TranslatorConfig {
+    let path = default_config_path();
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+        .unwrap_or_default()
+}
+
+/// 保存配置到默认位置（校验由调用方完成）
+pub fn save_default_config(config: &TranslatorConfig) -> std::io::Result<std::path::PathBuf> {
+    let path = default_config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&path, serde_json::to_vec_pretty(config)?)?;
+    Ok(path)
+}
+
 use async_trait::async_trait;
 use echo_core::Lang;
 

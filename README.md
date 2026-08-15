@@ -22,18 +22,26 @@ packages/
 
 ```bash
 pnpm install                # 安装 Node 依赖（workspace）
-pnpm dev                    # 启动 desktop 前端（next dev）
+pnpm dev                    # 启动 desktop 前端（next dev，端口 3200）
 cargo test --workspace      # Rust 全部测试
 pnpm schema                 # 重新生成 packages/config-schema 的 TS 类型（需要 cargo）
 
-# 翻译 CLI（调试/演示；默认 mock provider，不联网）
+# 翻译 CLI（调试；配置见下）
 cargo run -q -p echo-translator -- translate こんにちは
 cargo run -q -p echo-translator -- schema
 ```
 
-真实翻译：复制 `crates/echo-translator/echo-translator.config.example.json` 为
-`crates/echo-translator/echo-translator.config.json`（已 gitignore），填入任一 provider 的 key，
-然后 `cargo run -p echo-translator -- translate <文本>`。
+## 配置（内化，无配置文件复制流程）
+
+配置的唯一入口是**各端设置页**，保存在系统标准位置：
+
+| 端                 | 配置位置                                                |
+| ------------------ | ------------------------------------------------------- |
+| 安卓               | app 私有目录（设置页读写，外部不可见）                  |
+| PC 桌面 / CLI 共用 | `%APPDATA%\echo\echo-translator.config.json`（Windows） |
+
+CLI 找不到配置时自动回退 mock 并提示路径；`--config <文件>` 可显式指定。
+字段结构参考 `crates/echo-translator/echo-translator.config.example.json`。
 
 ## 架构约定
 

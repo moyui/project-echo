@@ -401,12 +401,8 @@ fun SettingsScreen() {
 }
 
 private fun readConfig(context: Context): JSONObject? {
-    val external = File(context.getExternalFilesDir(null), CONFIG_NAME)
-    val internal = File(context.filesDir, CONFIG_NAME)
-    val file = when {
-        external.exists() -> external
-        internal.exists() -> internal
-        else -> return null
-    }
+    // 配置唯一来源：内部私有目录（与网关加载同源）
+    val file = File(context.filesDir, CONFIG_NAME)
+    if (!file.exists()) return null
     return runCatching { JSONObject(file.readText()) }.getOrNull()
 }

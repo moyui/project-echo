@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, State};
 
-use echo_translator::{Gateway, TranslatorConfig};
+use echo_translator::{load_default_config, save_default_config, Gateway, TranslatorConfig};
 
 /// 全局状态：翻译网关（懒加载）+ TextractorCLI 子进程
 struct AppState {
@@ -203,33 +203,6 @@ fn textractor_hook(state: State<'_, AppState>, pid: u32, code: String) -> Result
 
 // ---------- 翻译网关 ----------
 
-/// 按候选路径加载网关配置（dev: 仓库内配置；打包后: exe 同目录）
-fn load_gateway() -> Result<Gateway, String> {
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_default();
-    let candidates = [
-        cwd.join("echo-translator.config.json"),
-        // dev 布局：apps/desktop/src-tauri -> 仓库根
-        cwd.join("../../../crates/echo-translator/echo-translator.config.json"),
-        cwd.join("../../crates/echo-translator/echo-translator.config.json"),
-        exe_dir.join("echo-translator.config.json"),
-    ];
-    for path in candidates {
-        if path.exists() {
-            let content = std::fs::read_to_string(&path)
-                .map_err(|e| format!("读取配置 {} 失败: {e}", path.display()))?;
-            let config: TranslatorConfig =
-                serde_json::from_str(&content).map_err(|e| format!("配置解析失败: {e}"))?;
-            return Gateway::new(config).map_err(|e| e.to_string());
-        }
-    }
-    // 无配置时回退 mock，保证开箱可用
-    Gateway::new(TranslatorConfig::default()).map_err(|e| e.to_string())
-}
-
 #[tauri::command]
 fn translate(state: State<'_, AppState>, texts: Vec<String>) -> Result<Vec<String>, String> {
     if texts.is_empty() {
@@ -237,7 +210,8 @@ fn translate(state: State<'_, AppState>, texts: Vec<String>) -> Result<Vec<Strin
     }
     let mut guard = state.gateway.lock().map_err(|_| "状态锁获取失败".to_string())?;
     if guard.is_none() {
-        *guard = Some(load_gateway()?);
+        let gateway = Gateway::new(load_default_config()).map_err(|e| e.to_string())?;
+        *guard = Some(gateway);
     }
     let gateway = guard.as_mut().expect("网关已初始化");
     tauri::async_runtime::block_on(gateway.translate(&texts)).map_err(|e| e.to_string())
@@ -245,43 +219,18 @@ fn translate(state: State<'_, AppState>, texts: Vec<String>) -> Result<Vec<Strin
 
 // ---------- 设置页 ----------
 
-fn config_candidates() -> [PathBuf; 4] {
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_default();
-    [
-        cwd.join("echo-translator.config.json"),
-        // dev 布局：apps/desktop/src-tauri -> 仓库根
-        cwd.join("../../../crates/echo-translator/echo-translator.config.json"),
-        cwd.join("../../crates/echo-translator/echo-translator.config.json"),
-        exe_dir.join("echo-translator.config.json"),
-    ]
-}
-
 /// 当前生效的配置 JSON（无文件时返回默认 mock 配置）
 #[tauri::command]
 fn get_config() -> Result<String, String> {
-    for path in config_candidates() {
-        if path.exists() {
-            return std::fs::read_to_string(&path).map_err(|e| format!("读取配置失败: {e}"));
-        }
-    }
-    serde_json::to_string_pretty(&TranslatorConfig::default()).map_err(|e| e.to_string())
+    serde_json::to_string_pretty(&load_default_config()).map_err(|e| e.to_string())
 }
 
-/// 保存配置（校验合法性后写入现有配置文件位置或默认位置），并重置网关使其下次翻译时生效
+/// 保存配置（校验合法性后写入系统配置目录），并重置网关使其下次翻译时生效
 #[tauri::command]
 fn save_config(state: State<'_, AppState>, config_json: String) -> Result<String, String> {
     let config: TranslatorConfig =
         serde_json::from_str(&config_json).map_err(|e| format!("配置不合法: {e}"))?;
-    let target = config_candidates()
-        .into_iter()
-        .find(|p| p.exists())
-        .unwrap_or_else(|| config_candidates()[0].clone());
-    let pretty = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    std::fs::write(&target, pretty).map_err(|e| format!("写入失败: {e}"))?;
+    let target = save_default_config(&config).map_err(|e| format!("写入失败: {e}"))?;
     // 重置网关，下次 translate 重新加载
     *state.gateway.lock().map_err(|e| e.to_string())? = None;
     Ok(target.display().to_string())

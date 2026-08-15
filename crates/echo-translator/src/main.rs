@@ -77,24 +77,23 @@ impl From<CliLang> for Lang {
 }
 
 fn load_config(path: Option<&PathBuf>) -> TranslatorConfig {
-    let effective = path.cloned().or_else(|| {
-        let default = PathBuf::from("echo-translator.config.json");
-        default.exists().then_some(default)
-    });
-    let Some(path) = effective else {
-        return TranslatorConfig::default();
-    };
-    match std::fs::read_to_string(&path) {
+    // 权威路径：系统配置目录；--config 可显式指定。不存在时使用内置 mock 配置。
+    let effective = path.cloned().unwrap_or_else(echo_translator::default_config_path);
+    match std::fs::read_to_string(&effective) {
         Ok(content) => match serde_json::from_str(&content) {
             Ok(config) => config,
             Err(err) => {
-                eprintln!("配置文件 {} 解析失败：{err}", path.display());
+                eprintln!("配置文件 {} 解析失败：{err}", effective.display());
                 std::process::exit(1);
             }
         },
-        Err(err) => {
-            eprintln!("配置文件 {} 读取失败：{err}", path.display());
-            std::process::exit(1);
+        Err(_) => {
+            eprintln!(
+                "提示：未找到配置（{}），使用内置 mock 配置。\
+真实 provider 请运行 app 在设置页填写，或创建该文件（结构见 echo-translator.config.example.json）。",
+                effective.display()
+            );
+            TranslatorConfig::default()
         }
     }
 }
