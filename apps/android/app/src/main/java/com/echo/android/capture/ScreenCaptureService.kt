@@ -158,11 +158,13 @@ class ScreenCaptureService : Service() {
         )
 
         gateway = UniffiTranslationGateway.load(this)
-        // 展示方式（下方对照/原位覆盖）与裁剪区域（状态栏/导航栏）
+        addOverlayView()
+
+        // 展示方式（下方对照/原位覆盖）、字号缩放与裁剪区域（需在 addOverlayView 之后设置）
         val prefs = getSharedPreferences("echo", MODE_PRIVATE)
         overlayView?.displayBelow = prefs.getString("display_mode", "below") != "cover"
+        overlayView?.fontScale = prefs.getString("font_scale", "1.0")?.toFloatOrNull() ?: 1f
         cropRegion = com.echo.android.util.CropRegion.fromPrefs(this)
-        addOverlayView()
         addBallView()
 
         isRunning = true
@@ -202,6 +204,7 @@ class ScreenCaptureService : Service() {
         val point = Point()
         @Suppress("DEPRECATION")
         getSystemService(WindowManager::class.java).defaultDisplay.getRealSize(point)
+        val prefs = getSharedPreferences("echo", MODE_PRIVATE)
         ballParams = WindowManager.LayoutParams(
             ballSize,
             ballSize,
@@ -210,8 +213,16 @@ class ScreenCaptureService : Service() {
             android.graphics.PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = point.x - ballSize - (16 * density).toInt()
-            y = point.y / 3
+            // 记忆上次拖放位置（越界则回退默认）
+            val savedX = prefs.getInt("ball_x", -1)
+            val savedY = prefs.getInt("ball_y", -1)
+            if (savedX in 0 until point.x && savedY in 0 until point.y) {
+                x = savedX.coerceAtMost(point.x - ballSize)
+                y = savedY.coerceAtMost(point.y - ballSize)
+            } else {
+                x = point.x - ballSize - (16 * density).toInt()
+                y = point.y / 3
+            }
         }
 
         var downX = 0f
@@ -256,6 +267,13 @@ class ScreenCaptureService : Service() {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     view.removeCallbacks(longPressRunnable)
+                    if (dragged) {
+                        // 拖动结束：记忆位置
+                        getSharedPreferences("echo", MODE_PRIVATE).edit()
+                            .putInt("ball_x", ballParams!!.x)
+                            .putInt("ball_y", ballParams!!.y)
+                            .apply()
+                    }
                     if (!dragged && !longPressed && event.actionMasked == MotionEvent.ACTION_UP) {
                         view.performClick()
                     }

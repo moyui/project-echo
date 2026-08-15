@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
@@ -51,6 +52,12 @@ private const val MIN_SHRINK = 0.6f
 @Composable
 fun OverlayScreen(bitmap: Bitmap, results: List<TranslationResult>, below: Boolean = true) {
     val density = LocalDensity.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // 用户字号缩放（设置页），展示分支统一应用
+    val fontScale = remember {
+        context.getSharedPreferences("echo", android.content.Context.MODE_PRIVATE)
+            .getString("font_scale", "1.0")?.toFloatOrNull() ?: 1f
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -79,7 +86,7 @@ fun OverlayScreen(bitmap: Bitmap, results: List<TranslationResult>, below: Boole
                     val boxWidth = with(density) { ((block.right - block.left) * scale).roundToInt().toDp() }
 
                     val basePx = if (block.isVertical) block.avgLineWidthPx else block.lineHeightPx
-                    val basePxScaled = basePx * scale * 0.82f
+                    val basePxScaled = basePx * scale * 0.82f * fontScale
                     val estPerLine = max(((block.right - block.left) * scale) / max(basePxScaled, 1f), 1f).toInt()
                     val capacity = estPerLine * (block.lines.size + 1)
                     val shrink = if (result.translation.length > capacity) {

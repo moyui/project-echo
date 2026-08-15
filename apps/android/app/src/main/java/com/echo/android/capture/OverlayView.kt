@@ -34,6 +34,9 @@ class OverlayView(context: Context) : View(context) {
     /** true = 译文在原块下方；false = 覆盖原块 */
     var displayBelow = true
 
+    /** 用户字号缩放（设置页），横排/竖排两分支统一应用 */
+    var fontScale = 1f
+
     private var items: List<Item> = emptyList()
     private var srcWidth = 1
     private var srcHeight = 1
@@ -89,7 +92,7 @@ class OverlayView(context: Context) : View(context) {
         val right = block.right * scale
         val bottom = block.bottom * scale
 
-        val basePx = block.lineHeightPx * scale * 0.82f
+        val basePx = block.lineHeightPx * scale * 0.82f * fontScale
         val charsPerLine = ((right - left) / max(basePx, 1f)).toInt().coerceAtLeast(1)
         val capacity = charsPerLine * (block.lines.size + 1)
         val shrink = if (item.translation.length > capacity) {
@@ -126,7 +129,7 @@ class OverlayView(context: Context) : View(context) {
         val right = block.right * scale
         val bottom = block.bottom * scale
 
-        val basePx = block.avgLineWidthPx * scale * 0.82f
+        val basePx = block.avgLineWidthPx * scale * 0.82f * fontScale
         val charsPerColumn = ((bottom - top) / max(basePx * 1.2f, 1f)).toInt().coerceIn(1, 64)
         val maxColumns = ((right - left) / max(basePx * 1.15f, 1f)).toInt().coerceIn(1, 32)
         val capacity = charsPerColumn * maxColumns
