@@ -29,6 +29,7 @@ import com.echo.android.R
 import com.echo.android.ocr.BlockMerge
 import com.echo.android.ocr.OcrEngine
 import com.echo.android.ocr.OcrLang
+import com.echo.android.ocr.ocrEngine
 import com.echo.android.palette.TextPalette
 import com.echo.android.translate.TranslationGateway
 import com.echo.android.translate.UniffiTranslationGateway
@@ -161,11 +162,10 @@ class ScreenCaptureService : Service() {
         gateway = UniffiTranslationGateway.load(this)
         addOverlayView()
 
-        // 展示固定为下方对照（原位覆盖入口暂时屏蔽）、字号缩放与裁剪区域
+        // 展示固定为底部对照面板、字号缩放与裁剪区域
         val prefs = getSharedPreferences("echo", MODE_PRIVATE)
-        overlayView?.displayBelow = true
         overlayView?.fontScale = prefs.getString("font_scale", "1.0")?.toFloatOrNull() ?: 1f
-        overlayView?.scrimAlpha = prefs.getString("scrim_alpha", "0.55")?.toFloatOrNull() ?: 0.55f
+        overlayView?.scrimAlpha = prefs.getString("scrim_alpha", "0.75")?.toFloatOrNull() ?: 0.75f
         cropRegion = com.echo.android.util.CropRegion.fromPrefs(this)
         addBallView()
 
@@ -291,9 +291,11 @@ class ScreenCaptureService : Service() {
 
     private fun onBallTapped() {
         val overlay = overlayView ?: return
+        android.util.Log.d("EchoBall", "球被点击 hasContent=${overlay.hasContent} busy=$busy")
         if (overlay.hasContent) {
             // 再点一次：清除译文
             overlay.update(emptyList(), captureWidth, captureHeight)
+            com.echo.android.ui.CaptureStore.clear()
             return
         }
         if (busy) return
@@ -342,6 +344,7 @@ class ScreenCaptureService : Service() {
                 android.util.Log.d("EchoBall", "帧转 Bitmap 失败")
                 return
             }
+            android.util.Log.d("EchoBall", "取帧完成 ${bitmap.width}x${bitmap.height}")
 
             // 2) 帧已到手，球立即回来并进入忙碌态（OCR/翻译阶段可能十几秒）
             ball?.post {
@@ -368,30 +371,39 @@ class ScreenCaptureService : Service() {
                 emptyList()
             }
             val blocks = if (ocrScale > 1f) rawBlocks.map { it.scaledBy(1f / ocrScale) } else rawBlocks
-            // 裁剪状态栏/导航栏 + 气泡聚类（一个气泡一个译文框）
+            android.util.Log.d("EchoBall", "OCR 完成 ${blocks.size} 块")
+            // 行级裁剪状态栏/导航栏 + 气泡聚类（一个气泡一个译文框）
             val cropped = BlockMerge.merge(
-                cropRegion.filter(blocks, captureHeight)
+                cropRegion.filterByLines(blocks, captureHeight)
             )
             if (cropped.isEmpty()) {
                 android.util.Log.d("EchoBall", "OCR 无结果（裁剪后）")
                 return
             }
+            // 二次识别（引擎档位来自设置：ML Kit / PP-OCRv5 / manga-ocr），失败自动回退
+            android.util.Log.d("EchoBall", "二次识别开始 engine=${ocrEngine()}")
+            val finalBlocks = com.echo.android.ocr.refineBlocks(this, cropped, bitmap, ocrEngine())
+            android.util.Log.d("EchoBall", "二次识别完成 ${finalBlocks.size} 块")
 
             val g = gateway ?: run {
                 android.util.Log.d("EchoBall", "网关未加载")
                 return
             }
             val translations = try {
-                g.translate(cropped.map { it.text })
+                val r = g.translate(finalBlocks.map { it.text })
+                android.util.Log.d("EchoBall", "翻译完成 ${r.size} 条")
+                r
             } catch (e: Exception) {
                 android.util.Log.d("EchoBall", "翻译失败: ${e.message}")
                 null
             } ?: return
-            val items = cropped.mapIndexedNotNull { index, block ->
+            val items = finalBlocks.mapIndexedNotNull { index, block ->
                 val text = translations.getOrNull(index)?.takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
                 OverlayView.Item(block, text, TextPalette.sample(bitmap, block))
             }
             overlayView?.post { overlayView?.update(items, captureWidth, captureHeight) }
+            // 同步发布到主页预览（图片叠加 + 逐条对照列表）
+            com.echo.android.ui.CaptureStore.publish(bitmap, finalBlocks, translations)
         } finally {
             // 3) 无论如何球都恢复常驻
             ball?.post {

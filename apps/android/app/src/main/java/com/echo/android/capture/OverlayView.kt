@@ -2,23 +2,19 @@ package com.echo.android.capture
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
-import android.text.TextUtils
 import android.view.View
-import androidx.compose.ui.graphics.toArgb
 import com.echo.android.ocr.OcrBlock
 import com.echo.android.palette.TextPalette
-import kotlin.math.max
-import kotlin.math.roundToInt
 
 /**
- * 实时翻译悬浮窗。
- * 两种展示方式：
- * - 下方对照（默认）：保持原块宽度，译文画在原块下方，原文不被覆盖
- * - 原位覆盖：译文直接盖在原块上（取色底衬）
+ * 实时翻译悬浮窗：底部对照面板。
+ * 所有气泡的译文逐条列在屏幕底部的一个面板里，全部横排，
+ * 按面板宽度自动换行，内容过多时整体缩小字号以适配面板高度。
  */
 class OverlayView(context: Context) : View(context) {
 
@@ -31,158 +27,92 @@ class OverlayView(context: Context) : View(context) {
     var hasContent = false
         private set
 
-    /** true = 译文在原块下方；false = 覆盖原块 */
-    var displayBelow = true
-
-    /** 用户字号缩放（设置页），横排/竖排两分支统一应用 */
+    /** 用户字号缩放（设置页） */
     var fontScale = 1f
 
-    /** 底衬浓度（设置页） */
-    var scrimAlpha = 0.55f
+    /** 面板底衬浓度（设置页） */
+    var scrimAlpha = 0.75f
 
     private var items: List<Item> = emptyList()
-    private var srcWidth = 1
-    private var srcHeight = 1
 
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
+        textAlign = Paint.Align.LEFT
+        color = Color.argb(242, 255, 255, 255)
     }
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val verticalPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
+    private val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(40, 255, 255, 255)
+        strokeWidth = 2f
     }
 
     fun update(items: List<Item>, srcWidth: Int, srcHeight: Int) {
         this.items = items
-        this.srcWidth = srcWidth
-        this.srcHeight = srcHeight
         hasContent = items.isNotEmpty()
         invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val scale = width.toFloat() / srcWidth
-        items.forEach { item ->
-            if (item.block.isVertical) {
-                drawVertical(canvas, item, scale)
-            } else {
-                drawHorizontal(canvas, item, scale)
-            }
-        }
-    }
+        if (items.isEmpty() || width <= 0 || height <= 0) return
 
-    private fun scrimColor(palette: TextPalette.Palette): Int =
-        android.graphics.Color.argb(
-            (scrimAlpha * 255).toInt(),
-            (palette.background.red * 255).roundToInt(),
-            (palette.background.green * 255).roundToInt(),
-            (palette.background.blue * 255).roundToInt(),
-        )
+        val marginH = (width * 0.025f).toInt()
+        // 底部间距与裁剪设置同源：导航条/手势安全区 + 少量呼吸，面板不压系统栏
+        val cropBottom = runCatching {
+            com.echo.android.util.CropRegion.fromPrefs(context).bottom
+        }.getOrDefault(0)
+        val bottomMargin = (cropBottom + (height * 0.006f).toInt()).coerceAtLeast((height * 0.02f).toInt())
+        val panelWidth = width - marginH * 2
+        val maxPanelHeight = (height * 0.42f).toInt()
+        val padH = (width * 0.035f).toInt()
+        val padV = padH / 2
+        val entryGap = (height * 0.008f).toInt()
+        val textWidth = panelWidth - padH * 2
 
-    private fun textColor(palette: TextPalette.Palette): Int =
-        android.graphics.Color.argb(
-            (0.9f * 255).toInt(),
-            (palette.foreground.red * 255).roundToInt(),
-            (palette.foreground.green * 255).roundToInt(),
-            (palette.foreground.blue * 255).roundToInt(),
-        )
-
-    private fun drawHorizontal(canvas: Canvas, item: Item, scale: Float) {
-        val block = item.block
-        val left = block.left * scale
-        val top = block.top * scale
-        val right = block.right * scale
-        val bottom = block.bottom * scale
-
-        val basePx = block.lineHeightPx * scale * 0.82f * fontScale
-        val charsPerLine = ((right - left) / max(basePx, 1f)).toInt().coerceAtLeast(1)
-        val capacity = charsPerLine * (block.lines.size + 1)
-        val shrink = if (item.translation.length > capacity) {
-            (capacity.toFloat() / item.translation.length).coerceAtLeast(0.6f)
-        } else {
-            1f
-        }
-
-        textPaint.textSize = basePx * shrink
-        textPaint.color = textColor(item.palette)
-        bgPaint.color = scrimColor(item.palette)
-
-        val widthPx = ((right - left).toInt() - 4).coerceAtLeast(8)
-        val layout = StaticLayout.Builder
-            .obtain(item.translation, 0, item.translation.length, textPaint, widthPx)
-            .setAlignment(Layout.Alignment.ALIGN_CENTER)
-            .setMaxLines(block.lines.size + 1)
-            .setEllipsize(TextUtils.TruncateAt.END)
-            .build()
-
-        val pad = 4f
-        val scrimTop = if (displayBelow) bottom + pad else top
-        canvas.drawRoundRect(left, scrimTop, right, scrimTop + layout.height + pad * 2, 4f, 4f, bgPaint)
-        canvas.save()
-        canvas.translate(left + 2, scrimTop + pad)
-        layout.draw(canvas)
-        canvas.restore()
-    }
-
-    private fun drawVertical(canvas: Canvas, item: Item, scale: Float) {
-        val block = item.block
-        val left = block.left * scale
-        val top = block.top * scale
-        val right = block.right * scale
-        val bottom = block.bottom * scale
-
-        val basePx = block.avgLineWidthPx * scale * 0.82f * fontScale
-        val charsPerColumn = ((bottom - top) / max(basePx * 1.2f, 1f)).toInt().coerceIn(1, 64)
-        val maxColumns = ((right - left) / max(basePx * 1.15f, 1f)).toInt().coerceIn(1, 32)
-        val capacity = charsPerColumn * maxColumns
-        val cleanText = item.translation.replace("\n", "")
-        val shrink = if (cleanText.length > capacity) {
-            (capacity.toFloat() / cleanText.length).coerceAtLeast(0.6f)
-        } else {
-            1f
-        }
-        val charPx = basePx * shrink
-
-        bgPaint.color = scrimColor(item.palette)
-        verticalPaint.textSize = charPx
-        verticalPaint.color = textColor(item.palette)
-
-        if (displayBelow) {
-            // 竖排原文保持可见，译文以横排放在块下方（宽度不小于 6 字，保证可读）
-            val widthPx = max((right - left).toInt(), (charPx * 6).toInt())
-            textPaint.textSize = charPx
-            textPaint.color = textColor(item.palette)
-            val layout = StaticLayout.Builder
-                .obtain(cleanText, 0, cleanText.length, textPaint, widthPx)
-                .setAlignment(Layout.Alignment.ALIGN_CENTER)
-                .setMaxLines(3)
-                .setEllipsize(TextUtils.TruncateAt.END)
+        fun buildLayouts(fontPx: Float): List<StaticLayout> = items.map { item ->
+            StaticLayout.Builder
+                .obtain(item.translation, 0, item.translation.length, textPaint.apply { textSize = fontPx }, textWidth)
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(entryGap.toFloat() * 0.4f, 1f)
                 .build()
-            val pad = 4f
-            val scrimTop = bottom + pad
-            val scrimRight = left + widthPx
-            canvas.drawRoundRect(left, scrimTop, scrimRight, scrimTop + layout.height + pad * 2, 4f, 4f, bgPaint)
+        }
+
+        // 字号超限时迭代等比缩小，保证所有条目都完整放进面板（不再有下限，避免溢出）
+        var fontPx = width / 24f * fontScale
+        var layouts = buildLayouts(fontPx)
+        fun contentHeight(ls: List<StaticLayout>): Int = ls.sumOf { it.height } + entryGap * (ls.size - 1)
+        val maxContent = maxPanelHeight - padV * 2
+        var content = contentHeight(layouts)
+        var guard = 0
+        while (content > maxContent && guard < 6) {
+            fontPx = (fontPx * maxContent.toFloat() / content * 0.98f).coerceAtLeast(6f)
+            layouts = buildLayouts(fontPx)
+            content = contentHeight(layouts)
+            guard++
+        }
+
+        val panelHeight = (content + padV * 2).coerceAtMost(maxPanelHeight).toFloat()
+        val panelTop = (height - bottomMargin - panelHeight).toFloat()
+        val panelLeft = marginH.toFloat()
+        val panelRight = (width - marginH).toFloat()
+
+        bgPaint.color = Color.argb((scrimAlpha * 255).toInt(), 18, 18, 22)
+        canvas.drawRoundRect(panelLeft, panelTop, panelRight, panelTop + panelHeight, 16f, 16f, bgPaint)
+
+        // 双保险：极端情况内容仍略超时裁剪在面板内，不画出黑底之外
+        canvas.save()
+        canvas.clipRect(panelLeft, panelTop, panelRight, panelTop + panelHeight)
+        var y = panelTop + padV
+        layouts.forEachIndexed { index, layout ->
             canvas.save()
-            canvas.translate(left + 2, scrimTop + pad)
+            canvas.translate(panelLeft + padH, y)
             layout.draw(canvas)
             canvas.restore()
-            return
-        }
-
-        val columns = cleanText.chunked(charsPerColumn).take(maxColumns)
-        canvas.drawRoundRect(left, top, right, bottom, 4f, 4f, bgPaint)
-        val fontMetrics = verticalPaint.fontMetrics
-        val lineStep = charPx * 1.2f
-        val baselineOffset = (lineStep - (fontMetrics.descent - fontMetrics.ascent)) / 2 - fontMetrics.ascent
-
-        // 日文纵排从右往左读：首列在最右
-        columns.forEachIndexed { colIndex, column ->
-            val x = right - (colIndex + 0.5f) * charPx * 1.15f
-            column.forEachIndexed { charIndex, _ ->
-                val y = top + baselineOffset + charIndex * lineStep
-                canvas.drawText(column, charIndex, charIndex + 1, x, y, verticalPaint)
+            y += layout.height
+            if (index < layouts.lastIndex) {
+                y += entryGap
+                canvas.drawLine(panelLeft + padH, y - entryGap / 2f, panelRight - padH, y - entryGap / 2f, dividerPaint)
             }
         }
+        canvas.restore()
     }
 }

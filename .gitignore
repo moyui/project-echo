@@ -41,3 +41,6 @@ echo-translator.config.json
 # 本地工具目录
 .zcode/
 .mimosa/
+
+# 本地 OCR 模型暂存（PC 开发用，不入库；安卓内置模型在 app assets）
+models-dev/

@@ -16,6 +16,28 @@ data class CropRegion(val top: Int, val bottom: Int) {
     fun filter(blocks: List<OcrBlock>, screenHeight: Int): List<OcrBlock> =
         blocks.filterNot { shouldSkip(it, screenHeight) }
 
+    /**
+     * 行级裁剪：ML Kit 可能把状态栏时钟和邻近气泡文字合进同一块，
+     * 块级过滤会整块放行。这里先剔除落在顶/底条内的行，再由剩余行重建块。
+     */
+    fun filterByLines(blocks: List<OcrBlock>, screenHeight: Int): List<OcrBlock> =
+        blocks.mapNotNull { block ->
+            val kept = block.lines.filterNot { line ->
+                line.bottom <= top || (bottom > 0 && line.top >= screenHeight - bottom)
+            }
+            if (kept.isEmpty()) {
+                null
+            } else {
+                OcrBlock(
+                    lines = kept,
+                    left = kept.minOf { it.left },
+                    top = kept.minOf { it.top },
+                    right = kept.maxOf { it.right },
+                    bottom = kept.maxOf { it.bottom },
+                )
+            }
+        }
+
     companion object {
         fun fromPrefs(context: Context): CropRegion {
             val prefs = context.getSharedPreferences("echo", Context.MODE_PRIVATE)

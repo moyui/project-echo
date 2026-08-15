@@ -55,4 +55,7 @@ dependencies {
 
     // UniFFI Kotlin 绑定依赖 JNA
     implementation("net.java.dev.jna:jna:5.14.0@aar")
+
+    // ONNX Runtime：PP-OCRv5 rec（默认引擎，打包进 assets）+ manga-ocr（按需下载）
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 }

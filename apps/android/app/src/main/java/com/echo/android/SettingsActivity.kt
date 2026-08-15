@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,6 +90,11 @@ fun SettingsScreen() {
     }
 
     var ocrLangName by remember { mutableStateOf(prefs.getString("ocr_lang", OcrLang.Ja.name) ?: OcrLang.Ja.name) }
+    var ocrEngineName by remember {
+        mutableStateOf(prefs.getString("ocr_engine", com.echo.android.ocr.OcrEngineKind.PPOCR.name) ?: com.echo.android.ocr.OcrEngineKind.PPOCR.name)
+    }
+    var mangaDownloadProgress by remember { mutableStateOf<Pair<Float, String>?>(null) }
+    var mangaDownloading by remember { mutableStateOf(false) }
     var fontScale by remember { mutableStateOf(prefs.getString("font_scale", "1.0") ?: "1.0") }
     var scrimAlpha by remember { mutableStateOf(prefs.getString("scrim_alpha", "0.55") ?: "0.55") }
     // 裁剪区域：自动/手动开关，自动时输入框禁用并展示系统实际值
@@ -144,7 +150,12 @@ fun SettingsScreen() {
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            Text("翻译引擎设置", style = MaterialTheme.typography.titleLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { (context as? androidx.activity.ComponentActivity)?.finish() }) {
+                    Text("返回")
+                }
+                Text("设置", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            }
             Spacer(Modifier.height(12.dp))
 
             Text("翻译服务", style = MaterialTheme.typography.bodySmall)
@@ -199,23 +210,87 @@ fun SettingsScreen() {
                         placeholder = { Text("漫画与游戏文本，译文简短口语化") },
                         modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
-                    Text("翻译方案（两套提示词与处理策略，可对比效果）", style = MaterialTheme.typography.bodySmall)
+                    Text("翻译方案", style = MaterialTheme.typography.bodySmall)
                     Row {
                         FilterChip(
                             selected = llmProfile == "gal",
                             onClick = { llmProfile = "gal" },
-                            label = { Text("GAL（对话+说话人分离）") },
+                            label = { Text("GAL") },
                             modifier = Modifier.padding(end = 4.dp),
                         )
                         FilterChip(
                             selected = llmProfile == "manga",
                             onClick = { llmProfile = "manga" },
-                            label = { Text("漫画（整页气泡）") },
+                            label = { Text("漫画") },
                         )
                     }
                 }
                 else -> {
                     Text("离线演示用，返回原文加前缀，不联网。", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text("OCR 引擎（文本定位统一用 ML Kit）", style = MaterialTheme.typography.bodySmall)
+            Column {
+                com.echo.android.ocr.OcrEngineKind.entries.forEach { e ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    ) {
+                        FilterChip(
+                            selected = ocrEngineName == e.name,
+                            onClick = { ocrEngineName = e.name },
+                            label = { Text(e.display) },
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(
+                            e.desc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+            if (ocrEngineName == com.echo.android.ocr.OcrEngineKind.MANGA.name) {
+                val downloaded = com.echo.android.ocr.MangaOcrRecognizer.isDownloaded(context)
+                if (downloaded) {
+                    Text("模型已就绪（漫画质量最佳，推理较慢）", style = MaterialTheme.typography.bodySmall)
+                } else if (!mangaDownloading && mangaDownloadProgress == null) {
+                    Text("需下载模型（约 140MB，hf-mirror 源）", style = MaterialTheme.typography.bodySmall)
+                }
+                if (mangaDownloading || mangaDownloadProgress != null) {
+                    val p = mangaDownloadProgress
+                    Text(
+                        if (mangaDownloading && p != null) "下载中 ${(p.first * 100).toInt()}% · ${p.second}"
+                        else p?.second ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (p?.first == 1f && !mangaDownloading) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = {
+                            mangaDownloading = true
+                            mangaDownloadProgress = 0f to "准备中"
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    com.echo.android.ocr.ModelDownloader.download(context) { f, d ->
+                                        mangaDownloadProgress = f to d
+                                    }
+                                }
+                                mangaDownloading = false
+                                result.onFailure { mangaDownloadProgress = -1f to "下载失败：${it.message}（点重试）" }
+                            }
+                        },
+                        enabled = !mangaDownloading && !downloaded,
+                    ) { Text(if (downloaded) "已下载" else if (mangaDownloadProgress?.first == -1f) "重试" else "下载模型") }
+                    if (mangaDownloading) {
+                        androidx.compose.material3.TextButton(onClick = { com.echo.android.ocr.ModelDownloader.cancel() }) {
+                            Text("取消")
+                        }
+                    }
                 }
             }
 
@@ -274,7 +349,11 @@ fun SettingsScreen() {
                 )
                 FilterChip(
                     selected = !cropTopAuto,
-                    onClick = { cropTopAuto = false },
+                    onClick = {
+                        cropTopAuto = false
+                        // 切手动时预填当前生效值（原手动值或系统自动值），避免空框猜数字
+                        if (cropTopText.isBlank()) cropTopText = autoTopPx.toString()
+                    },
                     label = { Text("手动") },
                 )
             }
@@ -288,10 +367,13 @@ fun SettingsScreen() {
             } else {
                 OutlinedTextField(
                     value = cropTopText,
-                    onValueChange = { cropTopText = it },
-                    label = { Text("像素值") },
+                    onValueChange = { cropTopText = it.filter { c -> c.isDigit() } },
+                    label = { Text("顶部裁剪（px）") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                    ),
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
@@ -304,7 +386,10 @@ fun SettingsScreen() {
                 )
                 FilterChip(
                     selected = !cropBottomAuto,
-                    onClick = { cropBottomAuto = false },
+                    onClick = {
+                        cropBottomAuto = false
+                        if (cropBottomText.isBlank()) cropBottomText = autoBottomPx.toString()
+                    },
                     label = { Text("手动") },
                 )
             }
@@ -318,10 +403,13 @@ fun SettingsScreen() {
             } else {
                 OutlinedTextField(
                     value = cropBottomText,
-                    onValueChange = { cropBottomText = it },
-                    label = { Text("像素值") },
+                    onValueChange = { cropBottomText = it.filter { c -> c.isDigit() } },
+                    label = { Text("底部裁剪（px）") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                    ),
                 )
             }
 
@@ -332,6 +420,7 @@ fun SettingsScreen() {
                         File(context.filesDir, CONFIG_NAME).writeText(buildConfig().toString())
                         prefs.edit()
                             .putString("ocr_lang", ocrLangName)
+                            .putString("ocr_engine", ocrEngineName)
                             .putString("font_scale", fontScale)
                             .putString("scrim_alpha", scrimAlpha)
                             .putString(

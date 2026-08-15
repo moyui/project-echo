@@ -167,19 +167,22 @@ object BlockMerge {
     }
 
     private fun compatible(a: List<OcrBlock>, b: List<OcrBlock>): Boolean {
-        val aVertical = a.first().isVertical
-        if (aVertical != b.first().isVertical) return false
-        fun expanded(blocks: List<OcrBlock>): IntArray {
-            val margin = (blocks.maxOf { it.lineHeightPx } * 1.2f).toInt().coerceAtLeast(8)
-            return intArrayOf(
-                blocks.minOf { it.left } - margin,
-                blocks.minOf { it.top } - margin,
-                blocks.maxOf { it.right } + margin,
-                blocks.maxOf { it.bottom } + margin,
-            )
+        val vertical = a.first().isVertical
+        if (vertical != b.first().isVertical) return false
+        // 膨胀半径按"字符尺寸"算（垂直块=行宽即列宽，水平块=行高），
+        // 不能用行高——竖排的行是整列，高几百像素，会把整页气泡连锁合并
+        fun margin(blocks: List<OcrBlock>): Int {
+            val charSize = blocks.maxOf { if (vertical) it.avgLineWidthPx else it.lineHeightPx }
+            return (charSize * 1.2f).toInt().coerceIn(8, 48)
         }
-        val ra = expanded(a)
-        val rb = expanded(b)
+        fun expanded(blocks: List<OcrBlock>, m: Int): IntArray = intArrayOf(
+            blocks.minOf { it.left } - m,
+            blocks.minOf { it.top } - m,
+            blocks.maxOf { it.right } + m,
+            blocks.maxOf { it.bottom } + m,
+        )
+        val ra = expanded(a, margin(a))
+        val rb = expanded(b, margin(b))
         return ra[0] < rb[2] && ra[2] > rb[0] && ra[1] < rb[3] && ra[3] > rb[1]
     }
 }

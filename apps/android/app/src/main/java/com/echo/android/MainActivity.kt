@@ -28,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,12 +47,10 @@ import androidx.core.content.ContextCompat
 import com.echo.android.capture.ScreenCaptureService
 import com.echo.android.ocr.OcrEngine
 import com.echo.android.ocr.OcrLang
-import com.echo.android.palette.TextPalette
+import com.echo.android.ocr.ocrEngine
 import com.echo.android.translate.StubTranslationGateway
 import com.echo.android.translate.TranslationGateway
 import com.echo.android.translate.UniffiTranslationGateway
-import com.echo.android.ui.OverlayScreen
-import com.echo.android.ui.TranslationResult
 import com.echo.android.util.Images
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -95,14 +94,13 @@ fun EchoApp(pendingUri: Uri? = null) {
     val gateway = remember { UniffiTranslationGateway.load(context) ?: StubTranslationGateway() }
     val scope = rememberCoroutineScope()
 
-    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var results by remember { mutableStateOf<List<TranslationResult>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var allFilesGranted by remember {
         mutableStateOf(Build.VERSION.SDK_INT < 30 || Environment.isExternalStorageManager())
     }
 
+    // 通知栏入口的图片处理（OCR→翻译→发布到 CaptureStore 供主页预览）
     val processImage: (Uri) -> Unit = { uri ->
         busy = true
         error = null
@@ -111,7 +109,6 @@ fun EchoApp(pendingUri: Uri? = null) {
                 val image = withContext(Dispatchers.IO) {
                     Images.decodeScaled(context, uri)
                 }
-                bitmap = image
 
                 // 小字辅助：小分辨率图放大后再识别，坐标映射回原图
                 val ocrScale = if (minOf(image.width, image.height) < 1200) 2f else 1f
@@ -127,30 +124,22 @@ fun EchoApp(pendingUri: Uri? = null) {
                 }
                 val rawBlocks = OcrEngine.recognize(ocrBitmap, context.ocrLang())
                 val mapped = if (ocrScale > 1f) rawBlocks.map { it.scaledBy(1f / ocrScale) } else rawBlocks
-                // 裁剪状态栏/导航栏 + 气泡聚类
+                // 行级裁剪状态栏/导航栏 + 气泡聚类 + 二次识别（引擎档位见设置）
                 val blocks = com.echo.android.ocr.BlockMerge.merge(
-                    com.echo.android.util.CropRegion.fromPrefs(context).filter(mapped, image.height)
+                    com.echo.android.util.CropRegion.fromPrefs(context).filterByLines(mapped, image.height)
                 )
-                // 翻译失败不丢 OCR 结果：原文占位继续渲染，错误单独提示
+                val finalBlocks = com.echo.android.ocr.refineBlocks(
+                    context, blocks, image, context.ocrEngine(),
+                )
                 val translations = try {
-                    gateway.translate(blocks.map { it.text })
+                    gateway.translate(finalBlocks.map { it.text })
                 } catch (e: Exception) {
                     error = "翻译失败（已用原文占位）：${e.message}"
-                    blocks.map { it.text }
+                    finalBlocks.map { it.text }
                 }
-                results = withContext(Dispatchers.IO) {
-                    blocks.mapIndexed { index, block ->
-                        TranslationResult(
-                            block = block,
-                            translation = translations.getOrElse(index) { "" },
-                            palette = TextPalette.sample(image, block),
-                        )
-                    }
-                }
+                com.echo.android.ui.CaptureStore.publish(image, finalBlocks, translations)
             } catch (e: Exception) {
                 error = "识别失败：${e.message}"
-                results = emptyList()
-                bitmap = null
             } finally {
                 busy = false
             }
@@ -171,16 +160,6 @@ fun EchoApp(pendingUri: Uri? = null) {
         ) {
             permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-    }
-
-    // 调试收件箱：adb push 图片到外部私有目录（/storage/emulated/0/Android/data/com.echo.android/files/）
-    // 启动时自动翻译最新一张，绕开系统选择器便于自动化测试
-    LaunchedEffect(Unit) {
-        val inbox = context.getExternalFilesDir(null) ?: return@LaunchedEffect
-        val image = inbox.listFiles { file ->
-            file.extension.lowercase() in setOf("jpg", "jpeg", "png", "webp")
-        }?.maxByOrNull { it.lastModified() }
-        if (image != null) processImage(Uri.fromFile(image))
     }
 
     // 通知栏点击入口：带图片 uri 打开时自动翻译
@@ -271,17 +250,19 @@ fun EchoApp(pendingUri: Uri? = null) {
                 Text(if (captureRunning) "关闭屏幕翻译悬浮球" else "开启屏幕翻译悬浮球")
             }
 
+            Spacer(Modifier.height(8.dp))
+            // 识别结果独立页面：数据来源 = 悬浮球点按抓取的屏幕帧（CaptureStore）
+            val count = com.echo.android.ui.CaptureStore.latest?.results?.size ?: 0
+            OutlinedButton(
+                onClick = { context.startActivity(Intent(context, ResultActivity::class.java)) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (count > 0) "查看识别结果（$count 条）" else "识别结果")
+            }
+
             error?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, color = MaterialTheme.colorScheme.error)
-            }
-
-            Spacer(Modifier.height(12.dp))
-            val currentBitmap = bitmap
-            if (currentBitmap != null) {
-                val below = remember { context.getSharedPreferences("echo", Context.MODE_PRIVATE)
-                    .getString("display_mode", "below") != "cover" }
-                OverlayScreen(currentBitmap, results, below = below)
             }
         }
     }
