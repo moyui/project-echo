@@ -127,8 +127,10 @@ fun EchoApp(pendingUri: Uri? = null) {
                 }
                 val rawBlocks = OcrEngine.recognize(ocrBitmap, context.ocrLang())
                 val mapped = if (ocrScale > 1f) rawBlocks.map { it.scaledBy(1f / ocrScale) } else rawBlocks
-                // 裁剪状态栏/导航栏区域（时间、电量不进翻译）
-                val blocks = com.echo.android.util.CropRegion.fromPrefs(context).filter(mapped, image.height)
+                // 裁剪状态栏/导航栏 + 气泡聚类
+                val blocks = com.echo.android.ocr.BlockMerge.merge(
+                    com.echo.android.util.CropRegion.fromPrefs(context).filter(mapped, image.height)
+                )
                 // 翻译失败不丢 OCR 结果：原文占位继续渲染，错误单独提示
                 val translations = try {
                     gateway.translate(blocks.map { it.text })

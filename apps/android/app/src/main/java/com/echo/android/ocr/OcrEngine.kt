@@ -108,3 +108,78 @@ object OcrEngine {
         }
     }
 }
+
+/**
+ * 气泡聚类：ML Kit 常把一个气泡拆成多个块，逐块渲染译文会导致框错位叠影。
+ * 规则：同方向（横/竖）且膨胀矩形（半径=平均行高×1.2）相交的块合并为一个气泡；
+ * 合并后按阅读顺序重排行（纵排右起、横排自上而下），一个气泡只出一个译文框。
+ */
+object BlockMerge {
+
+    fun merge(blocks: List<OcrBlock>): List<OcrBlock> {
+        if (blocks.size <= 1) return blocks
+        var groups = blocks.map { listOf(it) }
+
+        // 传递合并直到收敛
+        var changed = true
+        while (changed) {
+            changed = false
+            val remaining = groups.toMutableList()
+            val merged = mutableListOf<List<OcrBlock>>()
+            while (remaining.isNotEmpty()) {
+                var group = remaining.removeAt(0)
+                var absorbed = true
+                while (absorbed) {
+                    absorbed = false
+                    val iter = remaining.iterator()
+                    while (iter.hasNext()) {
+                        val other = iter.next()
+                        if (compatible(group, other)) {
+                            group = group + other
+                            iter.remove()
+                            absorbed = true
+                            changed = true
+                        }
+                    }
+                }
+                merged.add(group)
+            }
+            groups = merged
+        }
+
+        return groups.map { members ->
+            val vertical = members.first().isVertical
+            val lines = members.flatMap { it.lines }.sortedWith(
+                if (vertical) {
+                    compareByDescending<OcrLine> { it.right }.thenBy { it.top }
+                } else {
+                    compareBy({ it.top }, { it.left })
+                }
+            )
+            OcrBlock(
+                lines = lines,
+                left = members.minOf { it.left },
+                top = members.minOf { it.top },
+                right = members.maxOf { it.right },
+                bottom = members.maxOf { it.bottom },
+            )
+        }
+    }
+
+    private fun compatible(a: List<OcrBlock>, b: List<OcrBlock>): Boolean {
+        val aVertical = a.first().isVertical
+        if (aVertical != b.first().isVertical) return false
+        fun expanded(blocks: List<OcrBlock>): IntArray {
+            val margin = (blocks.maxOf { it.lineHeightPx } * 1.2f).toInt().coerceAtLeast(8)
+            return intArrayOf(
+                blocks.minOf { it.left } - margin,
+                blocks.minOf { it.top } - margin,
+                blocks.maxOf { it.right } + margin,
+                blocks.maxOf { it.bottom } + margin,
+            )
+        }
+        val ra = expanded(a)
+        val rb = expanded(b)
+        return ra[0] < rb[2] && ra[2] > rb[0] && ra[1] < rb[3] && ra[3] > rb[1]
+    }
+}

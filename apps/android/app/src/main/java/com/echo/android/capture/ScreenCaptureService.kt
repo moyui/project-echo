@@ -26,6 +26,7 @@ import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.echo.android.MainActivity
 import com.echo.android.R
+import com.echo.android.ocr.BlockMerge
 import com.echo.android.ocr.OcrEngine
 import com.echo.android.ocr.OcrLang
 import com.echo.android.palette.TextPalette
@@ -160,9 +161,9 @@ class ScreenCaptureService : Service() {
         gateway = UniffiTranslationGateway.load(this)
         addOverlayView()
 
-        // 展示方式（下方对照/原位覆盖）、字号缩放与裁剪区域（需在 addOverlayView 之后设置）
+        // 展示固定为下方对照（原位覆盖入口暂时屏蔽）、字号缩放与裁剪区域
         val prefs = getSharedPreferences("echo", MODE_PRIVATE)
-        overlayView?.displayBelow = prefs.getString("display_mode", "below") != "cover"
+        overlayView?.displayBelow = true
         overlayView?.fontScale = prefs.getString("font_scale", "1.0")?.toFloatOrNull() ?: 1f
         overlayView?.scrimAlpha = prefs.getString("scrim_alpha", "0.55")?.toFloatOrNull() ?: 0.55f
         cropRegion = com.echo.android.util.CropRegion.fromPrefs(this)
@@ -367,8 +368,10 @@ class ScreenCaptureService : Service() {
                 emptyList()
             }
             val blocks = if (ocrScale > 1f) rawBlocks.map { it.scaledBy(1f / ocrScale) } else rawBlocks
-            // 裁剪状态栏/导航栏（时间、电量等不再进入翻译，也省 token）
-            val cropped = cropRegion.filter(blocks, captureHeight)
+            // 裁剪状态栏/导航栏 + 气泡聚类（一个气泡一个译文框）
+            val cropped = BlockMerge.merge(
+                cropRegion.filter(blocks, captureHeight)
+            )
             if (cropped.isEmpty()) {
                 android.util.Log.d("EchoBall", "OCR 无结果（裁剪后）")
                 return

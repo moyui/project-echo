@@ -122,7 +122,7 @@ fun OverlayScreen(bitmap: Bitmap, results: List<TranslationResult>, below: Boole
                                 result.palette.background.copy(alpha = scrimAlpha),
                                 RoundedCornerShape(3.dp),
                             )
-                            .padding(horizontal = 2.dp),
+                            .padding(horizontal = 3.dp, vertical = 2.dp),
                     )
                 }
             }

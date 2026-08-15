@@ -89,7 +89,6 @@ fun SettingsScreen() {
     }
 
     var ocrLangName by remember { mutableStateOf(prefs.getString("ocr_lang", OcrLang.Ja.name) ?: OcrLang.Ja.name) }
-    var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "below") ?: "below") }
     var fontScale by remember { mutableStateOf(prefs.getString("font_scale", "1.0") ?: "1.0") }
     var scrimAlpha by remember { mutableStateOf(prefs.getString("scrim_alpha", "0.55") ?: "0.55") }
     // 裁剪区域：自动/手动开关，自动时输入框禁用并展示系统实际值
@@ -234,20 +233,8 @@ fun SettingsScreen() {
             }
 
             Spacer(Modifier.height(12.dp))
-            Text("译文展示方式（悬浮球与 app 内同步）", style = MaterialTheme.typography.bodySmall)
-            Row {
-                FilterChip(
-                    selected = displayMode == "below",
-                    onClick = { displayMode = "below" },
-                    label = { Text("下方对照") },
-                    modifier = Modifier.padding(end = 4.dp),
-                )
-                FilterChip(
-                    selected = displayMode == "cover",
-                    onClick = { displayMode = "cover" },
-                    label = { Text("原位覆盖") },
-                )
-            }
+            // 译文展示方式：固定下方对照（原位覆盖入口暂时屏蔽）
+            Text("译文展示：气泡下方对照", style = MaterialTheme.typography.bodySmall)
 
             Spacer(Modifier.height(12.dp))
             Text("译文字号（悬浮球与 app 内同步）", style = MaterialTheme.typography.bodySmall)
@@ -345,7 +332,6 @@ fun SettingsScreen() {
                         File(context.filesDir, CONFIG_NAME).writeText(buildConfig().toString())
                         prefs.edit()
                             .putString("ocr_lang", ocrLangName)
-                            .putString("display_mode", displayMode)
                             .putString("font_scale", fontScale)
                             .putString("scrim_alpha", scrimAlpha)
                             .putString(
