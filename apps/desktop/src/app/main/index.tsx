@@ -3,7 +3,9 @@ import Boot from "../boot"
 import Translator from "../translator"
 import RegisterEvent from "@/components/event"
 
-RegisterEvent()
+if (typeof window !== "undefined") {
+  RegisterEvent()
+}
 
 function Main() {
   // const [isStart, setIsStart] = useState(false)

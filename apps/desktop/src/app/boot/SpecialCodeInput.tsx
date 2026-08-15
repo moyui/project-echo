@@ -1,5 +1,5 @@
 import React from "react"
-import { Row, Col, Input } from "antd"
+import { Input } from "@/components/ui/input"
 
 interface SpecialCodeInputProps {
   value: string
@@ -9,16 +9,16 @@ interface SpecialCodeInputProps {
 function SpecialCodeInput(props: SpecialCodeInputProps) {
   const { value, onValueChange } = props
   return (
-    <Row>
-      <Col>
-        <Input
-          value={value}
-          onChange={e => onValueChange(e.target.value?.trim())}
-          addonBefore="特殊码："
-          placeholder="请输入特殊码（如果无需则为空）"
-        ></Input>
-      </Col>
-    </Row>
+    <div className="flex flex-col gap-2 py-2">
+      <label className="text-sm text-muted-foreground">
+        特殊码（无则留空）
+      </label>
+      <Input
+        value={value}
+        onChange={e => onValueChange(e.target.value?.trim())}
+        placeholder="如 /HWNWC@... 或 /R"
+      />
+    </div>
   )
 }
 

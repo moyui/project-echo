@@ -1,28 +1,28 @@
-import { WebviewWindow } from "@tauri-apps/api/window"
+import { WebviewWindow as TauriWebviewWindow } from "@tauri-apps/api/webviewWindow"
 
 class Window {
   private url: string
-  private window: WebviewWindow | null
+  private window: TauriWebviewWindow | null
   private label: string
-  private status: "open" | "close" | "initial"
 
   constructor({ url = "", label = "" }) {
     this.url = url
     this.label = label
     this.window = null
-    this.status = "initial"
   }
 
   public run() {
-    this.window = new WebviewWindow(this.label, {
+    this.window = new TauriWebviewWindow(this.label, {
       url: this.url,
+      width: 480,
+      height: 720,
+      title: "Echo 翻译",
     })
-    this.status = "open"
   }
 
   public close() {
     this.window?.close()
-    this.status = "close"
+    this.window = null
   }
 }
 

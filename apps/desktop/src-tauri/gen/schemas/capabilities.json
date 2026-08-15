@@ -1,0 +1,17 @@
+{
+  "default": {
+    "identifier": "default",
+    "description": "主窗口与翻译窗口的默认能力",
+    "local": true,
+    "windows": ["main", "translator"],
+    "permissions": [
+      "core:default",
+      "core:window:allow-create",
+      "core:window:allow-hide",
+      "core:window:allow-show",
+      "core:window:allow-close",
+      "core:window:allow-set-focus",
+      "dialog:allow-open"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 import React from "react"
-import { Row, Col, Button } from "antd"
+import { Button } from "@/components/ui/button"
 
 interface GameSelectProps {
   name: string
@@ -10,21 +10,19 @@ interface GameSelectProps {
 function GameSelect(props: GameSelectProps) {
   const { name, path, onGameSelect } = props
   return (
-    <>
-      <Row>
-        <Col>
-          <Button onClick={onGameSelect}>选择游戏</Button>
-        </Col>
-      </Row>
-      <Row>
-        <Col>您当前选择的游戏名是：</Col>
-        <Col>{name}</Col>
-      </Row>
-      <Row>
-        <Col>您当前选择的游戏路径是：</Col>
-        <Col>{path}</Col>
-      </Row>
-    </>
+    <div className="flex flex-col gap-3 py-2">
+      <Button onClick={onGameSelect} className="w-fit">
+        选择游戏
+      </Button>
+      <div className="text-sm">
+        <span className="text-muted-foreground">游戏名：</span>
+        {name || "未选择"}
+      </div>
+      <div className="break-all text-sm">
+        <span className="text-muted-foreground">路径：</span>
+        {path || "未选择"}
+      </div>
+    </div>
   )
 }
 

@@ -1,42 +1,33 @@
-import { Row, Col, Typography, Button } from "antd"
 import GameStartModal from "./GameStartModal"
-
-const { Title } = Typography
+import { Button } from "@/components/ui/button"
 
 interface BootProps {
   onStartClick: () => void
 }
 
-function Boot(props: BootProps) {
+function Boot(_props: BootProps) {
   return (
-    <>
-      <Row>
-        <Col>
-          <Title level={3}>回声计划</Title>
-        </Col>
-      </Row>
-      <Row gutter={16}>
-        <Col>
-          <GameStartModal>
-            {({ onStartClick }) => (
-              <Button
-                onClick={() => {
-                  onStartClick()
-                }}
-              >
-                回声，启动！
-              </Button>
-            )}
-          </GameStartModal>
-        </Col>
-        <Col>
-          <Button>设置</Button>
-        </Col>
-        <Col>
-          <Button>待开发功能</Button>
-        </Col>
-      </Row>
-    </>
+    <div className="flex h-screen flex-col items-center justify-center gap-8">
+      <h1 className="text-3xl font-bold tracking-wide">回声计划</h1>
+      <div className="flex gap-3">
+        <GameStartModal>
+          {({ onStartClick }) => (
+            <Button onClick={onStartClick} size="lg">
+              回声，启动！
+            </Button>
+          )}
+        </GameStartModal>
+        <Button variant="outline" size="lg" disabled>
+          设置
+        </Button>
+        <Button variant="outline" size="lg" disabled>
+          待开发功能
+        </Button>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        启动后请自行打开游戏，Echo 会自动检测进程并钩取文本
+      </p>
+    </div>
   )
 }
 
