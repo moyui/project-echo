@@ -270,16 +270,22 @@ fun SettingsScreen() {
                     label = { Text("手动") },
                 )
             }
-            OutlinedTextField(
-                value = cropTopText,
-                onValueChange = { cropTopText = it },
-                label = {
-                    Text(if (cropTopAuto) "自动生效：状态栏 ${autoTopPx}px" else "像素值")
-                },
-                enabled = !cropTopAuto,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            if (cropTopAuto) {
+                Text(
+                    "自动 · 跳过状态栏 ${autoTopPx}px",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            } else {
+                OutlinedTextField(
+                    value = cropTopText,
+                    onValueChange = { cropTopText = it },
+                    label = { Text("像素值") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                 Text("底部", modifier = Modifier.weight(0.4f))
                 FilterChip(
@@ -294,16 +300,22 @@ fun SettingsScreen() {
                     label = { Text("手动") },
                 )
             }
-            OutlinedTextField(
-                value = cropBottomText,
-                onValueChange = { cropBottomText = it },
-                label = {
-                    Text(if (cropBottomAuto) "自动生效：导航栏 ${autoBottomPx}px" else "像素值")
-                },
-                enabled = !cropBottomAuto,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            if (cropBottomAuto) {
+                Text(
+                    "自动 · 跳过导航栏 ${autoBottomPx}px",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            } else {
+                OutlinedTextField(
+                    value = cropBottomText,
+                    onValueChange = { cropBottomText = it },
+                    label = { Text("像素值") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
 
             Spacer(Modifier.height(16.dp))
             Row {
