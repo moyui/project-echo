@@ -1,0 +1,16 @@
+[package]
+name = "echo-ocr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+image = "0.25"
+ndarray = "0.17"
+ort = { version = "2.0.0-rc.13", features = ["ndarray"] }
+ureq = "2"
+dirs = "5"
+
+[[bin]]
+name = "echo-ocr"
+path = "src/main.rs"

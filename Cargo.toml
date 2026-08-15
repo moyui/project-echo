@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/echo-core",
     "crates/echo-translator",
+    "crates/echo-ocr",
     "crates/echo-bindings",
     "apps/desktop/src-tauri",
 ]

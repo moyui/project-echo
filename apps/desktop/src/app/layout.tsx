@@ -1,7 +1,4 @@
 import "./globals.css"
-import { Inter } from "next/font/google"
-
-const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "Echo",
@@ -15,7 +12,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body className={inter.className}>{children}</body>
+      {/* Tauri 本地窗口用系统字体栈；不用 next/font/google（build 需连 Google 下载字体会卡死） */}
+      <body className="font-sans">{children}</body>
     </html>
   )
 }

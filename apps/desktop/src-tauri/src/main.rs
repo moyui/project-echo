@@ -10,16 +10,21 @@ use tauri::{AppHandle, Emitter, State};
 
 use echo_translator::{load_default_config, save_default_config, Gateway, TranslatorConfig};
 
-/// 全局状态：翻译网关（懒加载）+ TextractorCLI 子进程
+/// 全局状态：翻译网关（懒加载）+ TextractorCLI 子进程 + 图片 OCR 管线（懒加载）
 struct AppState {
     gateway: Mutex<Option<Gateway>>,
     textractor: Mutex<Option<Child>>,
+    ocr: Mutex<Option<echo_ocr::MangaOcrPipeline>>,
 }
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(AppState { gateway: Mutex::new(None), textractor: Mutex::new(None) })
+        .manage(AppState {
+            gateway: Mutex::new(None),
+            textractor: Mutex::new(None),
+            ocr: Mutex::new(None),
+        })
         .invoke_handler(tauri::generate_handler![
             find_pids,
             textractor_start,
@@ -27,6 +32,7 @@ fn main() {
             textractor_detach,
             textractor_hook,
             translate,
+            translate_image,
             get_config,
             save_config,
             test_config,
@@ -215,6 +221,58 @@ fn translate(state: State<'_, AppState>, texts: Vec<String>) -> Result<Vec<Strin
     }
     let gateway = guard.as_mut().expect("网关已初始化");
     tauri::async_runtime::block_on(gateway.translate(&texts)).map_err(|e| e.to_string())
+}
+
+// ---------- 图片翻译（manga-ocr） ----------
+
+#[derive(serde::Serialize)]
+struct OcrTextResult {
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    original: String,
+    translation: String,
+}
+
+/// 识别并翻译一张图片：DBNet 检测 + manga-ocr 识别 + 网关翻译。
+/// 模型缺失时自动下载到 %APPDATA%\echo\models（首次约 140MB）。
+#[tauri::command]
+fn translate_image(state: State<'_, AppState>, path: String) -> Result<Vec<OcrTextResult>, String> {
+    // 路径必须是存在的图片文件，且不得包含命令注入字符
+    let p = std::path::Path::new(&path);
+    if !p.is_file() {
+        return Err(format!("文件不存在: {path}"));
+    }
+    let img = image::open(p).map_err(|e| format!("图片读取失败: {e}"))?;
+
+    let mut ocr_guard = state.ocr.lock().map_err(|e| e.to_string())?;
+    if ocr_guard.is_none() {
+        let dir = echo_ocr::model_store::dev_model_dir()
+            .or_else(|| echo_ocr::model_store::ensure_manga_ocr_pipeline().ok())
+            .ok_or_else(|| "OCR 模型不可用（下载失败）".to_string())?;
+        let pipeline = echo_ocr::MangaOcrPipeline::load(&dir).map_err(|e| e.to_string())?;
+        *ocr_guard = Some(pipeline);
+    }
+    let pipeline = ocr_guard.as_mut().expect("OCR 管线已初始化");
+    let boxes = pipeline.recognize(&img).map_err(|e| format!("识别失败: {e}"))?;
+    drop(ocr_guard);
+
+    let originals: Vec<String> = boxes.iter().map(|b| b.text.clone()).collect();
+    let translations = translate(state, originals)?;
+
+    Ok(boxes
+        .into_iter()
+        .zip(translations)
+        .map(|(b, t)| OcrTextResult {
+            x: b.x,
+            y: b.y,
+            w: b.w,
+            h: b.h,
+            original: b.text,
+            translation: t,
+        })
+        .collect())
 }
 
 // ---------- 设置页 ----------

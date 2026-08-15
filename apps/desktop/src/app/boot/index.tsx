@@ -23,9 +23,11 @@ function Boot(_props: BootProps) {
             设置
           </Button>
         </Link>
-        <Button variant="outline" size="lg" disabled>
-          待开发功能
-        </Button>
+        <Link href="/image-translate">
+          <Button variant="outline" size="lg">
+            图片翻译
+          </Button>
+        </Link>
       </div>
       <p className="text-sm text-muted-foreground">
         启动后请自行打开游戏，Echo 会自动检测进程并钩取文本
