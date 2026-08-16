@@ -6,16 +6,16 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// manga-ocr 管线（检测 + 识别）所需文件清单：文件名 → 下载地址
-/// 识别模型用 onnx-community 从原版 kha-white/manga-ocr-base 导出的 int8 量化版
-/// （ViT-base encoder 87MB + 2 层 BERT decoder 30MB）；vocab 取自原版仓库。
+/// 识别模型用 onnx-community 从原版 kha-white/manga-ocr-base 导出的 fp32 完整版
+/// （ViT-base encoder 343MB + 2 层 BERT decoder 117MB）；vocab 取自原版仓库。
 const MANGA_OCR_FILES: &[(&str, &str)] = &[
     (
-        "manga-ocr-encoder-int8.onnx",
-        "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/encoder_model_int8.onnx",
+        "manga-ocr-encoder-fp32.onnx",
+        "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/encoder_model.onnx",
     ),
     (
-        "manga-ocr-decoder-int8.onnx",
-        "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/decoder_model_int8.onnx",
+        "manga-ocr-decoder-fp32.onnx",
+        "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/decoder_model.onnx",
     ),
     (
         "manga-ocr-vocab.txt",

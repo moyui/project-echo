@@ -218,8 +218,8 @@ class MangaOcrRecognizer private constructor(
     modelDir: File,
 ) {
     companion object {
-        const val ENCODER = "manga-ocr-encoder.onnx"
-        const val DECODER = "manga-ocr-decoder.onnx"
+        const val ENCODER = "manga-ocr-encoder-int8.onnx"
+        const val DECODER = "manga-ocr-decoder-int8.onnx"
         const val VOCAB = "manga-ocr-vocab.txt"
         private const val START_TOKEN = 2L
         private const val EOS_TOKEN = 3L
@@ -346,11 +346,13 @@ class MangaOcrRecognizer private constructor(
 // ---------- 模型下载（manga-ocr，hf-mirror 优先） ----------
 
 object ModelDownloader {
+    // int8 量化版：onnx-community 从原版 kha-white/manga-ocr-base 导出
+    // （ViT-base encoder 87MB + 2 层 BERT decoder 30MB），vocab 用原版仓库
     private val files =
         listOf(
-            MangaOcrRecognizer.ENCODER to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/encoder_model.onnx",
-            MangaOcrRecognizer.DECODER to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/decoder_model.onnx",
-            MangaOcrRecognizer.VOCAB to "https://hf-mirror.com/l0wgear/manga-ocr-2025-onnx/resolve/main/vocab.txt",
+            MangaOcrRecognizer.ENCODER to "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/encoder_model_int8.onnx",
+            MangaOcrRecognizer.DECODER to "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/decoder_model_int8.onnx",
+            MangaOcrRecognizer.VOCAB to "https://hf-mirror.com/kha-white/manga-ocr-base/resolve/main/vocab.txt",
         )
 
     private val cancelled = AtomicBoolean(false)

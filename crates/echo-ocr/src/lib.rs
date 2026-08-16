@@ -28,8 +28,8 @@ impl MangaOcrPipeline {
         Ok(Self {
             det: det::Detector::load(&model_dir.join("ppocr-det.onnx"))?,
             ocr: manga_ocr::MangaOcr::load(
-                &model_dir.join("manga-ocr-encoder-int8.onnx"),
-                &model_dir.join("manga-ocr-decoder-int8.onnx"),
+                &model_dir.join("manga-ocr-encoder-fp32.onnx"),
+                &model_dir.join("manga-ocr-decoder-fp32.onnx"),
                 &model_dir.join("manga-ocr-vocab.txt"),
             )?,
         })
