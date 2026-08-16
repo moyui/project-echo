@@ -20,6 +20,6 @@ thiserror = "1.0"
 tokio = { version = "1.38", features = ["full"] }
 # rustls：Android 交叉编译没有 OpenSSL/native-tls，全平台统一 rustls
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-lru = "0.12"
+lru = "0.18"
 echo-core = { path = "crates/echo-core" }
 echo-translator = { path = "crates/echo-translator" }
