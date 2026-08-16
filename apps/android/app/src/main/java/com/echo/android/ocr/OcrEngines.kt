@@ -219,8 +219,8 @@ class MangaOcrRecognizer private constructor(
     modelDir: File,
 ) {
     companion object {
-        const val ENCODER = "manga-ocr-encoder-int8.onnx"
-        const val DECODER = "manga-ocr-decoder-int8.onnx"
+        const val ENCODER = "manga-ocr-encoder-dhq.onnx"
+        const val DECODER = "manga-ocr-decoder-dhq.onnx"
         const val VOCAB = "manga-ocr-vocab.txt"
         private const val START_TOKEN = 2L
         private const val EOS_TOKEN = 3L
@@ -377,14 +377,14 @@ class MangaOcrRecognizer private constructor(
 // ---------- 模型下载（manga-ocr，hf-mirror 优先） ----------
 
 object ModelDownloader {
-    // int8 量化版：onnx-community 从原版 kha-white/manga-ocr-base 导出
-    // （ViT-base encoder 87MB + 2 层 BERT decoder 30MB），权重 int8、IO fp32，
-    // onnxruntime Android CPU EP 可加载（fp16 版 Cast 算子不被 CPU EP 支持，
-    // 加载报 Type Error，勿切回）；vocab 用原版仓库
+    // dhleong/manga-ocr-android（Mihon 集成）的 ai_edge_torch full-int8 动态量化版：
+    // 卷积被重写为 MatMulInteger（无 ConvInteger——onnx-community 的 int8/fp16
+    // 在 onnxruntime-android 均无法加载：ConvInteger 无 CPU kernel、fp16 Cast 类型错）；
+    // encoder 89MB + decoder 30MB，输入输出名与官方一致（按索引取输出）
     private val files =
         listOf(
-            MangaOcrRecognizer.ENCODER to "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/encoder_model_int8.onnx",
-            MangaOcrRecognizer.DECODER to "https://hf-mirror.com/onnx-community/manga-ocr-base-ONNX/resolve/main/onnx/decoder_model_int8.onnx",
+            MangaOcrRecognizer.ENCODER to "https://hf-mirror.com/dhleong/manga-ocr-android/resolve/main/manga-ocr.converted.encoder.preprocessed.quant.onnx",
+            MangaOcrRecognizer.DECODER to "https://hf-mirror.com/dhleong/manga-ocr-android/resolve/main/manga-ocr.converted.decoder.preprocessed.quant.onnx",
             MangaOcrRecognizer.VOCAB to "https://hf-mirror.com/kha-white/manga-ocr-base/resolve/main/vocab.txt",
         )
 
