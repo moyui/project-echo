@@ -333,7 +333,7 @@ fun SettingsScreen() {
                 if (downloaded) {
                     Text("模型已就绪（漫画质量最佳，推理较慢）", style = MaterialTheme.typography.bodySmall)
                 } else if (!mangaDownloading && mangaDownloadProgress == null) {
-                    Text("需下载模型（约 230MB，hf-mirror 源）", style = MaterialTheme.typography.bodySmall)
+                    Text("需下载模型（约 120MB，hf-mirror 源）", style = MaterialTheme.typography.bodySmall)
                 }
                 if (mangaDownloading || mangaDownloadProgress != null) {
                     val p = mangaDownloadProgress
