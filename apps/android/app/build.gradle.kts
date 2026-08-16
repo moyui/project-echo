@@ -57,5 +57,7 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.14.0@aar")
 
     // ONNX Runtime：PP-OCRv5 rec（默认引擎，打包进 assets）+ manga-ocr（按需下载）
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+    // 1.21.0+：ConvInteger CPU kernel 可用（1.20 报 NOT_IMPLEMENTED），
+    // 对齐 dhleong/manga-ocr-android（Mihon 集成）验证过的版本
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.21.0")
 }
