@@ -218,6 +218,8 @@ class PpOcrRecognizer private constructor(
 class MangaOcrRecognizer private constructor(
     modelDir: File,
 ) {
+    private val debugDir: File = File(modelDir.parentFile, "ocr-debug")
+
     companion object {
         const val ENCODER = "manga-ocr-encoder-dhq.onnx"
         const val DECODER = "manga-ocr-decoder-dhq.onnx"
@@ -264,15 +266,13 @@ class MangaOcrRecognizer private constructor(
     }
 
     /**
-     * 识别一个横排文本行（对齐 mokuro 策略）：
-     * 先等比缩放到 64px 行高（text_height，训练尺度），再拉伸 224×224，
-     * 避免多行整块拉伸时每行字高被压缩。
+     * 识别一个文本行：先裁掉边缘连续暗带（对白框边框线），
+     * 再直接拉伸 224×224（对齐 dhleong/Mihon 的 PRESERVE_ASPECT=false——
+     * 实测 64px 等比缩放对竖排反而引入两次插值变形，识别更差）。
      */
     fun recognizeLine(crop: Bitmap): String {
-        val th = 64
-        val rawW = crop.width * th / crop.height.coerceAtLeast(1)
-        val lineScaled = Bitmap.createScaledBitmap(crop, rawW.coerceAtLeast(16), th, true)
-        val scaled = Bitmap.createScaledBitmap(lineScaled, 224, 224, true)
+        val trimmed = trimBorder(crop)
+        val scaled = Bitmap.createScaledBitmap(trimmed, 224, 224, true)
         val pixels = IntArray(224 * 224)
         scaled.getPixels(pixels, 0, 224, 0, 0, 224, 224)
         val n = pixels.size
@@ -343,6 +343,52 @@ class MangaOcrRecognizer private constructor(
 
     /** 整块二次识别：裁剪块区域喂模型，文本替换为单行 */
     /**
+     * 裁掉四边连续暗带（对白框边框线）：边框列的暗像素占比通常 >60%，
+     * 文字列 <50%。方框对白的边框紧贴文字，ML Kit 检测框会把它包进来，
+     * 干扰 manga-ocr 识别；圆框气泡边框离文字远，一般不受影响。
+     */
+    private fun trimBorder(crop: Bitmap): Bitmap {
+        val w = crop.width
+        val h = crop.height
+        if (w < 16 || h < 16) return crop
+        val px = IntArray(w * h)
+        crop.getPixels(px, 0, w, 0, 0, w, h)
+        val dark = BooleanArray(w * h)
+        for (i in px.indices) {
+            val p = px[i]
+            dark[i] = ((p shr 16 and 0xFF) + (p shr 8 and 0xFF) + (p and 0xFF)) / 3 < 128
+        }
+        fun colRatio(x: Int): Float {
+            var d = 0
+            var y = 0
+            while (y < h) {
+                if (dark[y * w + x]) d++
+                y++
+            }
+            return d.toFloat() / h
+        }
+        fun rowRatio(y: Int): Float {
+            var d = 0
+            var x = 0
+            while (x < w) {
+                if (dark[y * w + x]) d++
+                x++
+            }
+            return d.toFloat() / w
+        }
+        var l = 0
+        while (l < w && colRatio(l) > 0.6f) l++
+        var r = w - 1
+        while (r > l && colRatio(r) > 0.6f) r--
+        var t = 0
+        while (t < h && rowRatio(t) > 0.6f) t++
+        var b = h - 1
+        while (b > t && rowRatio(b) > 0.6f) b--
+        if (l >= r || t >= b) return crop
+        return Bitmap.createBitmap(crop, l, t, r - l + 1, b - t + 1)
+    }
+
+    /**
      * 按行二次识别：每行单独裁剪识别。manga-ocr 原生支持竖排（官方不旋转，
      * 实测旋转 90° 反而乱码），竖排列直接送模型。
      * 逐行回填译文（修复旧实现整块识别只替换 lines.first()、丢弃其余行坐标的 bug）。
@@ -360,6 +406,14 @@ class MangaOcrRecognizer private constructor(
                         "EchoOcrLine",
                         "识别 [${line.left},${line.top} ${line.width}x${line.height}] ${if (line.height > line.width * 1.2f) "竖" else "横"} -> ${text.take(40)}",
                     )
+                    // 临时调试：保存裁剪图到 filesDir/ocr-debug/（adb pull 分析识别失败原因）
+                    runCatching {
+                        debugDir.mkdirs()
+                        val f = java.io.File(debugDir, "${line.left}-${line.top}-${line.width}x${line.height}.png")
+                        if (!f.exists()) {
+                            crop.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, f.outputStream())
+                        }
+                    }
                     if (text.isBlank()) line else line.copy(text = text)
                 }
             block.copy(lines = lines)
