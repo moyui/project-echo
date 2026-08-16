@@ -1,5 +1,6 @@
 //! manga-ocr 推理：ViT 编码器（224×224, mean/std 0.5）+ BERT 解码器（自回归贪心）。
-//! 模型：l0wgear/manga-ocr-2025-onnx（量化导出，编码器 22MB / 解码器 118MB）。
+//! 模型：onnx-community/manga-ocr-base-ONNX int8 量化版（原版 ViT-base 架构，
+//! 编码器 87MB / 解码器 30MB，权重 int8、输入输出仍为 fp32）。
 
 use anyhow::{anyhow, Context, Result};
 use ndarray::{Array2, Array4};
