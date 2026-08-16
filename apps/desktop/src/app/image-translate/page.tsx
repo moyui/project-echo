@@ -63,7 +63,7 @@ function ImageTranslate() {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {busy && (
         <p className="text-sm text-muted-foreground">
-          首次使用会下载模型（约 140MB），之后每次识别约几秒
+          首次使用会下载模型（约 460MB），之后每次识别约几秒
         </p>
       )}
 

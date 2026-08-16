@@ -236,7 +236,7 @@ struct OcrTextResult {
 }
 
 /// 识别并翻译一张图片：DBNet 检测 + manga-ocr 识别 + 网关翻译。
-/// 模型缺失时自动下载到 %APPDATA%\echo\models（首次约 140MB）。
+/// 模型缺失时自动下载到 %APPDATA%\echo\models（首次约 460MB）。
 #[tauri::command]
 fn translate_image(state: State<'_, AppState>, path: String) -> Result<Vec<OcrTextResult>, String> {
     // 路径必须是存在的图片文件，且不得包含命令注入字符
