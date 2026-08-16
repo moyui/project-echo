@@ -122,6 +122,8 @@ object OcrEngine {
  * 气泡聚类：ML Kit 常把一个气泡拆成多个块，逐块渲染译文会导致框错位叠影。
  * 规则：同方向（横/竖）且膨胀矩形（半径=平均行高×1.2）相交的块合并为一个气泡；
  * 合并后按阅读顺序重排行（纵排右起、横排自上而下），一个气泡只出一个译文框。
+ * 块与块之间也按阅读顺序排列（纵排右→左、横排左→右，均自上而下），
+ * 覆盖 ML Kit 的原始返回顺序，保证语句拼接/渲染顺序符合漫画阅读习惯。
  */
 object BlockMerge {
     fun merge(blocks: List<OcrBlock>): List<OcrBlock> {
@@ -172,8 +174,64 @@ object BlockMerge {
                 right = members.maxOf { it.right },
                 bottom = members.maxOf { it.bottom },
             )
+        }.let { sortByReadingOrder(it) }
+    }
+
+    /**
+     * 块级阅读顺序（参考 manga-image-translator 的 sort_regions，省去面板检测）：
+     * 页面主导方向由竖排块占比决定——日文漫画竖排占优时按列（右→左、列内上→下），
+     * 否则按行（上→下、行内左→右）。排序键用块中心点，且先分组再排组内，
+     * 避免简单 (x, y) 复合键把"上一行靠右的块"排到"下一行靠左的块"之前。
+     */
+    private fun sortByReadingOrder(blocks: List<OcrBlock>): List<OcrBlock> {
+        if (blocks.size <= 1) return blocks
+        val verticalDominant = blocks.count { it.isVertical } >= (blocks.size + 1) / 2
+        // (块, 中心 x, 中心 y)
+        val withCenter =
+            blocks.map { b ->
+                Triple(b, (b.left + b.right) / 2.0, (b.top + b.bottom) / 2.0)
+            }
+
+        if (verticalDominant) {
+            // 列主序：右→左分列，列内上→下
+            val verticalWidths = blocks.filter { it.isVertical }.map { it.width }
+            val colGap =
+                (verticalWidths.medianOrNull() ?: blocks.map { it.width }.average())
+                    .times(0.6)
+                    .toInt()
+                    .coerceAtLeast(16)
+            val cols = mutableListOf<MutableList<Triple<OcrBlock, Double, Double>>>()
+            for (t in withCenter.sortedByDescending { it.second }) {
+                val col = cols.lastOrNull()
+                if (col == null || col[0].second - t.second > colGap) {
+                    cols.add(mutableListOf(t))
+                } else {
+                    col.add(t)
+                }
+            }
+            return cols.flatMap { col -> col.sortedBy { it.third } }.map { it.first }
+        } else {
+            // 行主序：上→下分行，行内左→右
+            val horizontalHeights = blocks.filterNot { it.isVertical }.map { it.height }
+            val rowGap =
+                (horizontalHeights.medianOrNull() ?: blocks.map { it.height }.average())
+                    .times(0.6)
+                    .toInt()
+                    .coerceAtLeast(12)
+            val rows = mutableListOf<MutableList<Triple<OcrBlock, Double, Double>>>()
+            for (t in withCenter.sortedBy { it.third }) {
+                val row = rows.lastOrNull()
+                if (row == null || t.third - row[0].third > rowGap) {
+                    rows.add(mutableListOf(t))
+                } else {
+                    row.add(t)
+                }
+            }
+            return rows.flatMap { row -> row.sortedBy { it.second } }.map { it.first }
         }
     }
+
+    private fun List<Int>.medianOrNull(): Double? = if (isEmpty()) null else sorted()[size / 2].toDouble()
 
     private fun compatible(
         a: List<OcrBlock>,
