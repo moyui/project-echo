@@ -103,19 +103,24 @@ impl MangaOcr {
     }
 }
 
-/// ViT 预处理：RGB、bilinear 到 224×224、(x/255-0.5)/0.5、NCHW
+/// ViT 预处理：与 manga-ocr 官方一致——先转灰度（PIL convert("L")，ITU-R 601-2
+/// 亮度系数）再缩放到 224×224、三通道归一化 (x/255-0.5)/0.5、NCHW。
+/// 模型在灰度图上训练，彩色直出属于分布偏移，会掉识别率。
 fn preprocess(crop: &image::DynamicImage) -> Array4<f32> {
-    let rgb = image::imageops::resize(
-        &crop.to_rgb8(),
-        224,
-        224,
-        image::imageops::FilterType::Triangle,
-    );
-    let mut out = Array4::<f32>::zeros((1, 3, 224, 224));
+    let rgb = crop.to_rgb8();
+    let mut gray = image::GrayImage::new(rgb.width(), rgb.height());
     for (x, y, px) in rgb.enumerate_pixels() {
+        let v =
+            (0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32).round() as u8;
+        gray.put_pixel(x, y, image::Luma([v]));
+    }
+    let scaled = image::imageops::resize(&gray, 224, 224, image::imageops::FilterType::Triangle);
+    let mut out = Array4::<f32>::zeros((1, 3, 224, 224));
+    for (x, y, px) in scaled.enumerate_pixels() {
+        let v = px[0] as f32 / 255.0;
+        let norm = (v - 0.5) / 0.5;
         for c in 0..3 {
-            let v = px[c] as f32 / 255.0;
-            out[[0, c, y as usize, x as usize]] = (v - 0.5) / 0.5;
+            out[[0, c, y as usize, x as usize]] = norm;
         }
     }
     out

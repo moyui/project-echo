@@ -751,6 +751,14 @@ class ScreenCaptureService : Service() {
                 android.util.Log.d("EchoBall", "OCR 无结果（裁剪后）")
                 return
             }
+            // 顺序排障日志：聚类后块的坐标、方向与阅读顺序（v 竖排 / h 横排）
+            cropped.forEachIndexed { i, b ->
+                val dir = if (b.isVertical) "v" else "h"
+                android.util.Log.d(
+                    "EchoBallOrder",
+                    "顺序[$i] $dir l=${b.left} t=${b.top} r=${b.right} btm=${b.bottom} w=${b.width} h=${b.height}",
+                )
+            }
             // 二次识别（引擎档位来自设置：ML Kit / PP-OCRv5 / manga-ocr），失败自动回退
             android.util.Log.d("EchoBall", "二次识别开始 engine=${ocrEngine()}")
             val finalBlocks =

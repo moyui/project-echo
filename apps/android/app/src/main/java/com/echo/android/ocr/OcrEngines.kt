@@ -14,6 +14,7 @@ import java.net.URL
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 
 /**
  * OCR 引擎三档（文本定位统一用 ML Kit，差异在识别，选哪个是哪个）：
@@ -271,9 +272,15 @@ class MangaOcrRecognizer private constructor(
         val data = FloatArray(3 * n)
         for (i in 0 until n) {
             val px = pixels[i]
-            data[i] = ((px shr 16 and 0xFF) / 255f - 0.5f) / 0.5f
-            data[n + i] = ((px shr 8 and 0xFF) / 255f - 0.5f) / 0.5f
-            data[2 * n + i] = ((px and 0xFF) / 255f - 0.5f) / 0.5f
+            val r = px shr 16 and 0xFF
+            val g = px shr 8 and 0xFF
+            val b = px and 0xFF
+            // ITU-R 601-2 灰度（对齐官方 PIL convert("L")，模型在灰度图上训练）
+            val y = (0.299f * r + 0.587f * g + 0.114f * b).roundToInt()
+            val v = (y / 255f - 0.5f) / 0.5f
+            data[i] = v
+            data[n + i] = v
+            data[2 * n + i] = v
         }
 
         val hidden: Array<Array<FloatArray>>
