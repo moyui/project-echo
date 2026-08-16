@@ -263,9 +263,16 @@ class MangaOcrRecognizer private constructor(
         vocab = File(modelDir, VOCAB).readLines()
     }
 
-    /** 识别一个文本区域裁剪图（横竖排均原生支持） */
-    fun recognize(crop: Bitmap): String {
-        val scaled = Bitmap.createScaledBitmap(crop, 224, 224, true)
+    /**
+     * 识别一个横排文本行（对齐 mokuro 策略）：
+     * 先等比缩放到 64px 行高（text_height，训练尺度），再拉伸 224×224，
+     * 避免多行整块拉伸时每行字高被压缩。
+     */
+    fun recognizeLine(crop: Bitmap): String {
+        val th = 64
+        val rawW = crop.width * th / crop.height.coerceAtLeast(1)
+        val lineScaled = Bitmap.createScaledBitmap(crop, rawW.coerceAtLeast(16), th, true)
+        val scaled = Bitmap.createScaledBitmap(lineScaled, 224, 224, true)
         val pixels = IntArray(224 * 224)
         scaled.getPixels(pixels, 0, 224, 0, 0, 224, 224)
         val n = pixels.size
@@ -335,19 +342,36 @@ class MangaOcrRecognizer private constructor(
     }
 
     /** 整块二次识别：裁剪块区域喂模型，文本替换为单行 */
+    /**
+     * 按行二次识别（对齐 mokuro）：每行单独裁剪识别，竖排列旋转 90° 变横排。
+     * 逐行回填译文（修复旧实现整块识别只替换 lines.first()、丢弃其余行坐标的 bug）。
+     */
     fun refine(
         blocks: List<OcrBlock>,
         bitmap: Bitmap,
     ): List<OcrBlock> =
         blocks.map { block ->
-            val crop = cropBmp(bitmap, block.left, block.top, block.right, block.bottom, 4)
-            val text = recognize(crop)
-            if (text.isBlank()) {
-                block
-            } else {
-                block.copy(lines = listOf(block.lines.first().copy(text = text)))
-            }
+            val lines =
+                block.lines.map { line ->
+                    val crop = cropBmp(bitmap, line.left, line.top, line.right, line.bottom, 4)
+                    val horizontal =
+                        if (line.height > line.width * 1.2f) {
+                            rotateToHorizontal(crop)
+                        } else {
+                            crop
+                        }
+                    val text = recognizeLine(horizontal)
+                    if (text.isBlank()) line else line.copy(text = text)
+                }
+            block.copy(lines = lines)
         }
+
+    /** 竖排（列）顺时针旋转 90° 成横排（mokuro 同款：ROTATE_90_CLOCKWISE） */
+    private fun rotateToHorizontal(bmp: Bitmap): Bitmap {
+        val m = android.graphics.Matrix()
+        m.postRotate(90f)
+        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+    }
 }
 
 // ---------- 模型下载（manga-ocr，hf-mirror 优先） ----------
