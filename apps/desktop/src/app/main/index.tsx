@@ -1,6 +1,4 @@
-import { useState } from "react"
 import Boot from "../boot"
-import Translator from "../translator"
 import RegisterEvent from "@/components/event"
 
 if (typeof window !== "undefined") {
@@ -8,16 +6,9 @@ if (typeof window !== "undefined") {
 }
 
 function Main() {
-  // const [isStart, setIsStart] = useState(false)
-
-  // const handleStartClick = () => {
-  //   setIsStart(true)
-  // }
-
   return (
     <>
-      <Boot onStartClick={() => {}}></Boot>
-      {/* {isStart ? <Translator></Translator> : null} */}
+      <Boot />
     </>
   )
 }

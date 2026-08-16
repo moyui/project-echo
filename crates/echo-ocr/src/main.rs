@@ -14,7 +14,7 @@ fn main() -> anyhow::Result<()> {
             .expect("模型不可用：先运行一次自动下载，或用 --models-dir 指定"),
     };
 
-    let img = image::open(&image_path)?;
+    let img = image::open(image_path)?;
     println!("图片 {image_path} {}x{}，模型目录 {}", img.width(), img.height(), models_dir.display());
 
     let t0 = Instant::now();

@@ -76,7 +76,12 @@ impl Detector {
         // 输出 [1,1,H,W] → 概率图
         let shape = prob.shape().to_vec();
         let (oh, ow) = (shape[shape.len() - 2], shape[shape.len() - 1]);
-        let flat = prob.into_raw_vec();
+        // ort 提取的数组连续且从头开始（offset 恒为 0；None 表示空数组）
+        let (flat, offset) = prob.into_raw_vec_and_offset();
+        let flat = match offset {
+            Some(0) | None => flat,
+            Some(off) => flat[off..].to_vec(),
+        };
 
         let mut boxes = connected_boxes(&flat, ow, oh);
         // 坐标映射回原图并外扩

@@ -136,7 +136,7 @@ impl PipelineState {
     /// - 空白/噪声文本直接丢弃；
     /// - 译文缓存命中的块进入 `resolved`（调用方直接上屏）；
     /// - 其余进入 `pending`（调用方送 `Gateway` 翻译后调用 [`PipelineState::store`] 回填）。
-    /// `pending` 内部已按指纹去重（同帧重复文本只出现一次）。
+    ///   `pending` 内部已按指纹去重（同帧重复文本只出现一次）。
     pub fn process(&mut self, blocks: Vec<TextBlock>) -> PipelineOutput {
         let mut output = PipelineOutput::default();
         let mut seen_in_batch = std::collections::HashSet::new();

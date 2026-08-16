@@ -115,7 +115,7 @@ pub fn apply_glossary(text: &str, glossary: &[GlossaryEntry]) -> String {
         return text.to_string();
     }
     let mut sorted: Vec<&GlossaryEntry> = glossary.iter().collect();
-    sorted.sort_by(|a, b| b.source.chars().count().cmp(&a.source.chars().count()));
+    sorted.sort_by_key(|e| std::cmp::Reverse(e.source.chars().count()));
     let mut result = text.to_string();
     for entry in sorted {
         if !entry.source.is_empty() {

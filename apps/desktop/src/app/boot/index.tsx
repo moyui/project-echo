@@ -2,11 +2,7 @@ import GameStartModal from "./GameStartModal"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-interface BootProps {
-  onStartClick: () => void
-}
-
-function Boot(_props: BootProps) {
+function Boot() {
   return (
     <div className="flex h-screen flex-col items-center justify-center gap-8">
       <h1 className="text-3xl font-bold tracking-wide">回声计划</h1>
