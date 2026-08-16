@@ -343,7 +343,8 @@ class MangaOcrRecognizer private constructor(
 
     /** 整块二次识别：裁剪块区域喂模型，文本替换为单行 */
     /**
-     * 按行二次识别（对齐 mokuro）：每行单独裁剪识别，竖排列旋转 90° 变横排。
+     * 按行二次识别：每行单独裁剪识别。manga-ocr 原生支持竖排（官方不旋转，
+     * 实测旋转 90° 反而乱码），竖排列直接送模型。
      * 逐行回填译文（修复旧实现整块识别只替换 lines.first()、丢弃其余行坐标的 bug）。
      */
     fun refine(
@@ -354,24 +355,15 @@ class MangaOcrRecognizer private constructor(
             val lines =
                 block.lines.map { line ->
                     val crop = cropBmp(bitmap, line.left, line.top, line.right, line.bottom, 4)
-                    val horizontal =
-                        if (line.height > line.width * 1.2f) {
-                            rotateToHorizontal(crop)
-                        } else {
-                            crop
-                        }
-                    val text = recognizeLine(horizontal)
+                    val text = recognizeLine(crop)
+                    android.util.Log.d(
+                        "EchoOcrLine",
+                        "识别 [${line.left},${line.top} ${line.width}x${line.height}] ${if (line.height > line.width * 1.2f) "竖" else "横"} -> ${text.take(40)}",
+                    )
                     if (text.isBlank()) line else line.copy(text = text)
                 }
             block.copy(lines = lines)
         }
-
-    /** 竖排（列）顺时针旋转 90° 成横排（mokuro 同款：ROTATE_90_CLOCKWISE） */
-    private fun rotateToHorizontal(bmp: Bitmap): Bitmap {
-        val m = android.graphics.Matrix()
-        m.postRotate(90f)
-        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
-    }
 }
 
 // ---------- 模型下载（manga-ocr，hf-mirror 优先） ----------
