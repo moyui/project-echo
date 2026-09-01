@@ -46,6 +46,14 @@ pub fn save_default_config(config: &TranslatorConfig) -> std::io::Result<std::pa
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(&path, serde_json::to_vec_pretty(config)?)?;
+    // 配置文件含 API key 等密钥：Unix 下收紧为仅 owner 可读写，避免被其他本地用户读取
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&path)?.permissions();
+        perms.set_mode(0o600);
+        std::fs::set_permissions(&path, perms)?;
+    }
     Ok(path)
 }
 
