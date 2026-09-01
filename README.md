@@ -10,7 +10,7 @@ crates/                      # Rust 核心（全平台共享）
 └── echo-translator/        # 翻译网关：DeepL / 百度 / 有道 / LLM（OpenAI 兼容）+ 术语表 + LRU/磁盘缓存
 
 apps/
-└── desktop/                # PC 壳（Next.js + Tauri 1.x），Textractor 文本钩取在 apps/desktop/public/static
+└── desktop/                # PC 壳（Next.js + Tauri 2.x），Textractor 文本钩取在 apps/desktop/public/static
 
 packages/
 └── config-schema/          # 从 echo-translator 的 Rust 配置生成 TS 类型（单一事实来源）
